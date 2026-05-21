@@ -1,0 +1,8 @@
+# GitHub linguist — 언어 통계에서 제외할 폴더들
+# https://github.com/github-linguist/linguist/blob/main/docs/overrides.md
+
+# 디자인 참조 자료 (HTML UI kit, 폰트, preview HTML 등) — 소스 코드 아님
+claude_design/** linguist-vendored
+
+# package-lock은 generated
+package-lock.json linguist-generated
