@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#EBF7F1"></rect>
+  <text x="64" y="88" text-anchor="middle" font-family="Pretendard Variable, Pretendard, -apple-system, &#39;Apple SD Gothic Neo&#39;, &#39;Noto Sans KR&#39;, sans-serif" font-weight="900" font-size="60" letter-spacing="-2" fill="#5E9E82">맡</text>
+  <circle cx="100" cy="30" r="6" fill="#5E9E82"></circle>
+</svg>

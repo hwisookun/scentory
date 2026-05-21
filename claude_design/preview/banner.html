@@ -1,0 +1,87 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css"><style>
+body{margin:0;padding:24px;background:#F6FBF8;font-family:var(--font-sans)}
+
+.banner{position:relative;border-radius:24px;padding:26px 28px 24px;min-height:190px;color:#fff;overflow:hidden;
+  background:
+    linear-gradient(120deg, rgba(16,24,42,.72) 0%, rgba(16,24,42,.35) 55%, rgba(16,24,42,.15) 100%),
+    radial-gradient(circle at 82% 18%, rgba(168,213,186,.35) 0%, transparent 45%),
+    linear-gradient(135deg,#1E2A44 0%, #2E4A6E 55%, #3E6890 100%);
+  box-shadow:0 12px 28px rgba(30,42,68,.35), 0 1px 0 rgba(255,255,255,.08) inset;
+  display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto;gap:10px}
+
+.grain{position:absolute;inset:0;opacity:.15;mix-blend-mode:overlay;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.5) 1px, transparent 1px);background-size:3px 3px}
+
+/* bottle silhouette — pushed further right so it doesn't clash with text */
+.bottle{position:absolute;right:-40px;top:-10px;bottom:-20px;width:200px;opacity:.55;
+  filter:drop-shadow(0 20px 30px rgba(0,0,0,.35));transform:rotate(-6deg);pointer-events:none}
+.bottle svg{width:100%;height:100%}
+
+/* readability scrim behind text */
+.scrim{position:absolute;left:0;top:0;bottom:0;width:72%;
+  background:linear-gradient(90deg, rgba(10,16,30,.55) 0%, rgba(10,16,30,0) 100%);pointer-events:none;border-radius:24px 0 0 24px}
+
+.top{grid-column:1/2;grid-row:1;display:flex;gap:8px;align-items:center;z-index:2}
+.badge{background:rgba(255,255,255,.14);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.25);font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+  padding:5px 10px;border-radius:9999px;color:#FFFFFF;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+.dots{grid-column:2/3;grid-row:1;display:flex;gap:4px;z-index:2;align-self:center}
+.dots i{width:5px;height:5px;border-radius:9999px;background:rgba(255,255,255,.35);display:block}
+.dots i.active{width:18px;background:#A8D5BA}
+
+.body{grid-column:1/2;grid-row:2;z-index:2;align-self:end;max-width:62%}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#A8D5BA;margin-bottom:10px;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.title{font-size:26px;font-weight:900;letter-spacing:-.6px;line-height:1.15;margin:0;color:#fff;
+  text-shadow:0 2px 10px rgba(10,16,30,.5), 0 1px 2px rgba(0,0,0,.4)}
+.title em{font-style:normal;color:#FFDAC9;font-weight:800}
+.sub{font-size:12px;color:#E8F0F7;margin-top:10px;line-height:1.5;max-width:240px;
+  text-shadow:0 1px 6px rgba(10,16,30,.55)}
+
+.foot{grid-column:1/3;grid-row:3;display:flex;align-items:center;justify-content:space-between;z-index:2;margin-top:14px}
+.meta{font-size:11px;color:rgba(255,255,255,.78);font-weight:700;letter-spacing:.3px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+/* CTA bottom-right, solid peach accent — high contrast */
+.cta{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:#1E2A44;
+  background:#FFDAC9;padding:12px 8px 12px 18px;border-radius:9999px;
+  box-shadow:0 8px 18px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.5) inset;
+  border:none;cursor:pointer;font-family:inherit;letter-spacing:-.1px}
+.cta .arrow{width:26px;height:26px;border-radius:9999px;background:#1E2A44;color:#FFDAC9;
+  display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+.cta:hover{transform:translateY(-1px)}
+</style></head><body>
+
+<div class="banner">
+  <div class="scrim"></div>
+  <div class="grain"></div>
+  <div class="bottle">
+    <svg viewBox="0 0 200 220">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(255,255,255,.25)"/>
+          <stop offset="100%" stop-color="rgba(168,213,186,.15)"/>
+        </linearGradient>
+      </defs>
+      <rect x="60" y="30" width="80" height="22" rx="3" fill="rgba(255,255,255,.32)"/>
+      <rect x="50" y="52" width="100" height="12" rx="2" fill="rgba(255,255,255,.24)"/>
+      <rect x="42" y="64" width="116" height="130" rx="14" fill="url(#bg)" stroke="rgba(255,255,255,.32)" stroke-width="1"/>
+      <rect x="56" y="78" width="14" height="90" rx="6" fill="rgba(255,255,255,.5)"/>
+    </svg>
+  </div>
+
+  <div class="top"><span class="badge">Limited · 신규 팝업</span></div>
+  <div class="dots"><i class="active"></i><i></i><i></i></div>
+
+  <div class="body">
+    <div class="eyebrow">MAISON MARGIELA</div>
+    <h2 class="title">Replica <em>Spring</em><br/>봄의 기억을 담다</h2>
+    <div class="sub">2025 봄 한정판 신규 입하 · 그린 플로럴</div>
+  </div>
+
+  <div class="foot">
+    <span class="meta">04.21 – 05.15</span>
+    <button class="cta">지금 보러가기 <span class="arrow">→</span></button>
+  </div>
+</div>
+
+</body></html>

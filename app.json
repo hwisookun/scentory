@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "맡다.",
+    "slug": "matda",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "usesAppleSignIn": true,
+      "bundleIdentifier": "com.anonymous.scentory"
+    },
+    "scheme": "matda",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.scentory"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "맡다.가 사진 라이브러리에 접근하려고 합니다. 한줄평에 사진을 첨부하기 위해 필요해요."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "맡다.가 캘린더에 접근하려고 합니다. 향수 다이어리를 기본 캘린더에 함께 기록하기 위해 필요해요."
+        }
+      ],
+      "expo-web-browser",
+      "expo-apple-authentication"
+    ]
+  }
+}

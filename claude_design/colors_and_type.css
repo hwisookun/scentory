@@ -1,0 +1,231 @@
+/* 맡다. (Matda) — colors + type foundations
+   --------------------------------------------
+   Source of truth: src/constants/theme.ts in hwisookun/test
+   Font: Pretendard — brand font files in /fonts (uploaded by the user).
+   All 9 weights available (100 / 200 / 300 / 400 / 500 / 600 / 700 / 800 / 900).
+*/
+
+@font-face { font-family:'Pretendard'; font-weight:100; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Thin.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:200; font-style:normal; font-display:swap; src:url('fonts/Pretendard-ExtraLight.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:300; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Light.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:400; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Regular.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:500; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Medium.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:600; font-style:normal; font-display:swap; src:url('fonts/Pretendard-SemiBold.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:700; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Bold.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:800; font-style:normal; font-display:swap; src:url('fonts/Pretendard-ExtraBold.otf') format('opentype'); }
+@font-face { font-family:'Pretendard'; font-weight:900; font-style:normal; font-display:swap; src:url('fonts/Pretendard-Black.otf') format('opentype'); }
+
+:root {
+  /* ---------- Color: brand ---------- */
+  --primary:        #A8D5BA;  /* Pastel 연두 — hero, cute & soft */
+  --primary-light:  #D4EDE0;  /* Ultra-soft surfaces / hover tints */
+  --primary-dark:   #6FB88F;  /* For text-on-white and borders where the pastel would wash out */
+  --primary-ink:    #3E7E62;  /* Darkest variant — only for tiny type on white (eyebrows, icons) */
+  --secondary:      #F0F8F3;  /* Barely-there mint tint — soft fills */
+  --accent:         #FFB3A1;  /* Pastel coral — wishlist heart */
+  --accent-ink:     #FF8A70;  /* Saturated coral — filled heart state */
+
+  /* ---------- Color: surfaces ---------- */
+  --background:     #F7FAF8;  /* Barely-green off-white page bg */
+  --white:          #FFFFFF;  /* Cards, tab bar, inputs */
+  --overlay:        rgba(46, 64, 54, 0.38);   /* Modal scrim */
+  --overlay-dark:   rgba(46, 64, 54, 0.58);
+
+  /* ---------- Color: ink ---------- */
+  --text:           #1A2E24;  /* Dark green-black — primary text */
+  --text-secondary: #6B7C75;
+  --text-light:     #8A9C95;
+  --border:         #E0EBE5;  /* Ghosted green — 1–1.5px borders */
+
+  /* ---------- Color: green-tinted grayscale ---------- */
+  --gray-100: #F4F6F5;
+  --gray-200: #E8EDEA;
+  --gray-300: #D4DDD8;
+  --gray-400: #B0BDB8;
+  --gray-500: #8A9C95;
+  --gray-600: #6B7C75;
+  --gray-700: #556560;
+  --gray-800: #3E4E48;
+  --black:    #1A2E24;
+
+  /* ---------- Color: semantic ---------- */
+  --success: #43A047;
+  --warning: #FB8C00;
+  --error:   #E53935;
+  --star:    #FFB800;
+
+  /* ---------- Color: social ---------- */
+  --kakao: #FEE500;
+  --naver: #03C75A;
+
+  /* ---------- Color: scent tags (bg + fg pairs) ---------- */
+  /* More emotional, dustier, slightly desaturated; warmer whites */
+  --scent-floral-bg:  #FBDCE8;    --scent-floral-fg:  #C94277;
+  --scent-citrus-bg:  #FDF1C4;    --scent-citrus-fg:  #CC8500;
+  --scent-woody-bg:   #EADFCF;    --scent-woody-fg:   #6E4B2E;
+  --scent-musk-bg:    #EBDFF1;    --scent-musk-fg:    #7A4A9C;
+  --scent-fresh-bg:   #D8EEFC;    --scent-fresh-fg:   #1F78B0;
+  --scent-oriental-bg:#F8D6C8;    --scent-oriental-fg:#B24B22;
+  --scent-aquatic-bg: #CFEDEF;    --scent-aquatic-fg: #036B7C;
+  --scent-gourmand-bg:#F6DEB6;    --scent-gourmand-fg:#8C4A1B;
+  --scent-spicy-bg:   #F8C8A8;    --scent-spicy-fg:   #9A2E14;
+  --scent-herbal-bg:  #D9ECCF;    --scent-herbal-fg:  #3F7A2C;
+  --scent-powdery-bg: #F7DDE6;    --scent-powdery-fg: #A8396A;
+  --scent-leather-bg: #DFCFC1;    --scent-leather-fg: #5B3A24;
+  --scent-smoky-bg:   #D8DEDF;    --scent-smoky-fg:   #3E5560;
+  --scent-green-bg:   #D4E6C8;    --scent-green-fg:   #2F6B35;
+  --scent-fougere-bg: #D6E4F5;    --scent-fougere-fg: #1A4A8A;
+  --scent-chypre-bg:  #EAEBC4;    --scent-chypre-fg:  #5C7520;
+  --scent-balsamic-bg:#F5D8C2;    --scent-balsamic-fg:#8C3D15;
+  --scent-iris-bg:    #DCD0EF;    --scent-iris-fg:    #4A2A8F;
+
+  /* ---------- Type: family ---------- */
+  --font-sans: 'Pretendard', -apple-system, 'Apple SD Gothic Neo',
+               'Noto Sans KR', 'Segoe UI', Roboto, sans-serif;
+  /* Serif stack — used only for the logotype/wordmark "맡다." so the brand mark
+     reads as editorial / perfume-house, while the rest of the UI stays in Pretendard.
+     Nanum Myeongjo / Noto Serif KR handle Korean; Playfair for Latin samples. */
+  --font-serif: 'Nanum Myeongjo', 'Noto Serif KR', 'Source Han Serif K',
+                'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-logo: var(--font-serif); /* Logotype uses serif at weight 900 */
+
+  /* ---------- Type: weights ---------- */
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;
+  --fw-black:     900;
+
+  /* ---------- Type: sizes (px — matches FONT_SIZES) ---------- */
+  --fs-caption: 11px;
+  --fs-small:   12px;
+  --fs-bodySm:  13px;
+  --fs-body:    14px;
+  --fs-bodyLg:  15px;
+  --fs-h4:      16px;
+  --fs-h3:      18px;
+  --fs-h2:      20px;
+  --fs-h1:      26px;
+  --fs-display: 32px;
+
+  /* ---------- Type: line heights ---------- */
+  --lh-caption: 17px;
+  --lh-small:   18px;
+  --lh-bodySm:  20px;
+  --lh-body:    21px;
+  --lh-bodyLg:  23px;
+  --lh-h4:      24px;
+  --lh-h3:      27px;
+  --lh-h2:      30px;
+  --lh-h1:      34px;
+  --lh-display: 40px;
+
+  /* ---------- Spacing ---------- */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
+  --sp-xxl: 48px;
+  --touch-target: 44px;
+
+  /* ---------- Radii ---------- */
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  24px;
+  --r-full: 9999px;
+
+  /* ---------- Shadows (warm, tinted with --text ink) ---------- */
+  --shadow-sm: 0 1px 4px rgba(26, 46, 36, 0.06);
+  --shadow-md: 0 4px 8px rgba(26, 46, 36, 0.10);
+  --shadow-lg: 0 8px 16px rgba(26, 46, 36, 0.15);
+}
+
+/* ---------- Base ---------- */
+html, body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'ss02', 'cv11';
+}
+
+/* ---------- Semantic type classes ---------- */
+.display, h1.display {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+.h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-extrabold);
+  color: var(--text);
+}
+.h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-extrabold);
+  color: var(--text);
+}
+.h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-extrabold);
+  color: var(--text);
+}
+.h4 {
+  font-size: var(--fs-h4);
+  line-height: var(--lh-h4);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+.body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-regular);
+  color: var(--text);
+}
+.body-lg {
+  font-size: var(--fs-bodyLg);
+  line-height: var(--lh-bodyLg);
+  font-weight: var(--fw-regular);
+  color: var(--text);
+}
+.body-sm {
+  font-size: var(--fs-bodySm);
+  line-height: var(--lh-bodySm);
+  font-weight: var(--fw-regular);
+  color: var(--text-secondary);
+}
+.small {
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-weight: var(--fw-regular);
+  color: var(--text-secondary);
+}
+.caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-secondary);
+}
+.eyebrow {
+  /* UPPERCASE micro-label used for brand names on cards, note-group labels, etc. */
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.logotype {
+  font-family: var(--font-logo);
+  font-weight: var(--fw-black);
+  color: var(--primary);
+  letter-spacing: -1px;
+}

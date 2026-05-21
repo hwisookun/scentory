@@ -1,0 +1,38 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css"><style>
+body{margin:0;padding:32px;background:#F2FBF5;font-family:var(--font-sans);display:flex;align-items:center;gap:40px;flex-wrap:wrap}
+
+.word{font-family:var(--font-serif);font-weight:900;letter-spacing:-1.5px;line-height:.9;color:#1F3A2A;position:relative;display:inline-flex;align-items:baseline}
+.word em{font-style:normal;color:#5A9E72}
+.word .dot{display:inline-block;border-radius:9999px;background:#5A9E72;box-shadow:0 2px 0 #3F7A53;margin-left:2px;vertical-align:baseline}
+
+.lg{font-size:88px}
+.lg .dot{width:18px;height:18px}
+.md{font-size:52px}
+.md .dot{width:11px;height:11px}
+.sm{font-size:30px}
+.sm .dot{width:7px;height:7px}
+
+.sub{font-size:10px;letter-spacing:3px;font-weight:700;color:#6B8A78;text-transform:uppercase;margin-top:6px}
+
+.block{display:flex;flex-direction:column}
+.spec{margin-left:auto;text-align:right;font-family:ui-monospace,monospace;font-size:10px;color:#6B8A78;line-height:1.7}
+.spec b{color:#3F7A53;font-weight:800}
+</style></head><body>
+
+<div class="block">
+  <span class="word lg"><em>맡</em>다<span class="dot"></span></span>
+  <span class="sub">MATDA · 향을 맡다</span>
+</div>
+
+<span class="word md"><em>맡</em>다<span class="dot"></span></span>
+<span class="word sm"><em>맡</em>다<span class="dot"></span></span>
+
+<div class="spec">
+  serif · weight <b>900</b><br/>
+  tracking: <b>−1.5px</b><br/>
+  맡 → <b>#5A9E72</b> · 다 → <b>#1F3A2A</b><br/>
+  dot: #5A9E72 droplet (향)<br/>
+  period is part of the mark
+</div>
+
+</body></html>

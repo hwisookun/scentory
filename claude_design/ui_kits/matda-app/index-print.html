@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<title>맡다. Mobile App — UI Kit (Print)</title>
+<link rel="stylesheet" href="../../colors_and_type.css"/>
+<style>
+  /* ───── Screen baseline ───── */
+  html,body{margin:0;padding:0;background:#F7FAF8;font-family:var(--font-sans);color:#1A2E24}
+
+  .cover{
+    padding:64px 64px 48px; background:#1A2E24; color:#F7FAF8;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:32px;
+    page-break-after: page; break-after: page;
+    min-height: 220px;
+  }
+  .cover .brand{font-family:var(--font-serif);font-weight:900;font-size:64px;letter-spacing:-1px;line-height:1;color:#D4EDE0}
+  .cover .brand em{font-style:normal;color:#A8D5BA}
+  .cover .brand .dot{display:inline-block;width:16px;height:16px;background:#A8D5BA;border-radius:9999px;margin-left:4px;vertical-align:baseline}
+  .cover h1{font-size:14px;margin:0;font-weight:700;letter-spacing:3px;color:#A8D5BA;text-transform:uppercase}
+  .cover .meta{font-size:12px;color:#A8BEB4;margin-top:12px;line-height:1.6}
+  .cover .meta b{color:#D4EDE0;font-weight:700}
+
+  .page{
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    gap:28px; padding:48px 32px 32px; background:#F7FAF8;
+    page-break-after: page; break-after: page;
+    min-height: 100vh; box-sizing: border-box;
+  }
+  .page:last-child{page-break-after:auto;break-after:auto}
+
+  .page .phone-wrap{display:flex;align-items:center;justify-content:center}
+  .page .caption{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+  .page .label{font-size:11px;font-weight:800;color:#3E7E62;letter-spacing:3px;text-transform:uppercase}
+  .page .title{font-family:var(--font-serif);font-size:22px;font-weight:800;color:#1F3A2A;letter-spacing:-.3px}
+  .page .sub{font-size:12px;color:#6B7C75;font-weight:500}
+  .page .foot{margin-top:auto; padding-top:24px; display:flex;justify-content:space-between;width:100%;
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A9C95;font-weight:700}
+
+  /* Each PhoneFrame is 390×844 + the outer device bezel (~42px padding on all sides).
+     Scale a bit so it sits comfortably on A4 landscape / letter portrait alike. */
+  .page .phone-wrap > div { transform: scale(.78); transform-origin: top center; }
+
+  /* ───── Print rules ───── */
+  @page { size: A4 portrait; margin: 12mm; }
+  @media print{
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .cover{page-break-after:page;break-after:page}
+    .page{page-break-after:page;break-after:page;break-inside:avoid;min-height:auto;padding:0}
+    .page:last-child{page-break-after:auto;break-after:auto}
+    .page .phone-wrap > div { transform: scale(.72); }
+    .page .foot{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ───── Cover page ───── -->
+<section class="cover">
+  <div>
+    <div class="brand"><em>맡</em>다<span class="dot"></span></div>
+    <div style="margin-top:24px">
+      <h1>Mobile App · UI Kit</h1>
+      <div class="meta">
+        <b>8 screens</b> · iPhone 14 Pro · 390 × 844<br/>
+        Evolved design system — pastel 연두, 향이 chibi mascot, serif logotype
+      </div>
+    </div>
+  </div>
+  <div style="text-align:right;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#A8BEB4;font-weight:700">
+    2026 · Spring<br/>
+    Snapshot
+  </div>
+</section>
+
+<!-- ───── Screen pages (rendered by React) ───── -->
+<main id="root"></main>
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Same sources as the live kit -->
+<script src="data.js"></script>
+<script type="text/babel" src="Primitives.jsx"></script>
+<script type="text/babel" src="PhoneFrame.jsx"></script>
+<script type="text/babel" src="ScreenLogin.jsx"></script>
+<script type="text/babel" src="ScreenOnboarding.jsx"></script>
+<script type="text/babel" src="ScreenExplore.jsx"></script>
+<script type="text/babel" src="ScreenPerfumeDetail.jsx"></script>
+<script type="text/babel" src="ScreenWishlist.jsx"></script>
+<script type="text/babel" src="ScreenCommunity.jsx"></script>
+<script type="text/babel" src="ScreenChatbot.jsx"></script>
+<script type="text/babel" src="ScreenMyPage.jsx"></script>
+
+<script type="text/babel">
+function Page({index, total, label, title, sub, children}){
+  return (
+    <section className="page">
+      <div className="caption">
+        <div className="label">{label}</div>
+        <div className="title">{title}</div>
+        {sub ? <div className="sub">{sub}</div> : null}
+      </div>
+      <div className="phone-wrap">{children}</div>
+      <div className="foot">
+        <span>맡다. · Mobile App UI Kit</span>
+        <span>{String(index).padStart(2,'0')} / {String(total).padStart(2,'0')}</span>
+      </div>
+    </section>
+  );
+}
+
+function App(){
+  // Read persisted likes so printed state mirrors what the user saw last
+  let liked = {};
+  try { liked = JSON.parse(localStorage.getItem('matda.liked')||'{}'); } catch {}
+  const noop = ()=>{};
+  const toggleLike = ()=>{};
+  const detailPerfume = window.MATDA_DATA.PERFUMES[0];
+
+  const screens = [
+    {label:'01 Login',            title:'Login',              sub:'Splash · 소셜 로그인',
+      el:<ScreenLogin onLogin={noop}/>},
+    {label:'02 Onboarding',       title:'Onboarding',         sub:'Step 3 · 가격대',
+      el:<ScreenOnboarding onDone={noop} onSkip={noop}/>},
+    {label:'03 Explore',          title:'찾아보기',            sub:'홈 · 에디터 추천',
+      el:<ScreenExplore onOpenPerfume={noop} liked={liked} toggleLike={toggleLike}/>},
+    {label:'04 Perfume detail',   title:detailPerfume.name,   sub:`${detailPerfume.brand} · ${detailPerfume.nameKo}`,
+      el:<ScreenPerfumeDetail perfume={detailPerfume} onBack={noop} liked={liked} toggleLike={toggleLike}/>},
+    {label:'05 Wishlist',         title:'위시리스트',           sub:'내가 저장한 향',
+      el:<ScreenWishlist liked={liked} toggleLike={toggleLike} onOpenPerfume={noop}/>},
+    {label:'06 Community',        title:'커뮤니티',             sub:'향덕후들의 이야기',
+      el:<ScreenCommunity/>},
+    {label:'07 Chatbot',          title:'향이',                sub:'AI 향수 추천 채팅',
+      el:<ScreenChatbot/>},
+    {label:'08 MyPage',           title:'마이페이지',           sub:'프로필 · 활동 · 설정',
+      el:<ScreenMyPage liked={liked} onLogout={noop}/>},
+  ];
+  const total = screens.length;
+
+  return (
+    <>
+      {screens.map((s,i)=>(
+        <Page key={i} index={i+1} total={total} label={s.label} title={s.title} sub={s.sub}>
+          <PhoneFrame>{s.el}</PhoneFrame>
+        </Page>
+      ))}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+// Auto-print — wait for fonts + a paint cycle + a safety delay
+(async () => {
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
+  // One extra rAF so the final React layout is committed
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise(r => setTimeout(r, 700));
+  window.print();
+})();
+</script>
+</body>
+</html>

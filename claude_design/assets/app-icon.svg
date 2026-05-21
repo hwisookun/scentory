@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <clipPath id="r"><rect width="180" height="180" rx="40"></rect></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="180" height="180" fill="#5E9E82"></rect>
+    <circle cx="90" cy="100" r="56" fill="#7DB89B" opacity="0.55"></circle>
+    <text x="90" y="120" text-anchor="middle" font-family="Pretendard Variable, Pretendard, -apple-system, &#39;Apple SD Gothic Neo&#39;, &#39;Noto Sans KR&#39;, sans-serif" font-weight="900" font-size="96" letter-spacing="-3" fill="#FFFFFF">맡</text>
+    <circle cx="140" cy="46" r="8" fill="#FFFFFF"></circle>
+  </g>
+</svg>
