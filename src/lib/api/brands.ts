@@ -1,17 +1,7 @@
 import { getSupabase } from '../supabase';
 import { MOCK_BRANDS } from '../mockData';
-import type { Brand, PriceRange, PerfumeCountry } from '../../types';
-
-interface BrandRow {
-  id: string;
-  name: string;
-  description: string | null;
-  official_url: string | null;
-  logo_url: string | null;
-  price_range: PriceRange;
-  is_niche: boolean;
-  country: PerfumeCountry;
-}
+import type { Brand } from '../../types';
+import type { BrandRow } from '../../types/database';
 
 function rowToBrand(r: BrandRow): Brand {
   return {
@@ -30,16 +20,26 @@ export async function getBrands(): Promise<Brand[]> {
   const sb = getSupabase();
   if (!sb) return MOCK_BRANDS;
 
-  const { data, error } = await sb.from('brands').select('*').order('name');
+  const { data, error } = await sb
+    .from('brands')
+    .select('*')
+    .order('name')
+    .returns<BrandRow[]>();
   if (error) throw error;
-  return (data as BrandRow[]).map(rowToBrand);
+  return data.map(rowToBrand);
 }
 
 export async function getBrandById(id: string): Promise<Brand | null> {
   const sb = getSupabase();
   if (!sb) return MOCK_BRANDS.find((b) => b.id === id) ?? null;
 
-  const { data, error } = await sb.from('brands').select('*').eq('id', id).maybeSingle();
+  // 단일 결과 쿼리에는 .returns<>를 못 붙임(현재 supabase-js 타입 가드 제한).
+  // 셰이프는 BrandRow 그대로라서 mapper 호출 시 캐스트.
+  const { data, error } = await sb
+    .from('brands')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   return data ? rowToBrand(data as BrandRow) : null;
 }

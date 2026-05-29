@@ -1,36 +1,13 @@
 import { getSupabase } from '../supabase';
 import { MOCK_PERFUMES } from '../mockData';
-import type { Perfume, ScentTag, Concentration, PerfumeCategory } from '../../types';
+import type { Perfume, ScentTag } from '../../types';
+import type { PerfumeRow, BrandRow } from '../../types/database';
 
-interface PerfumeRow {
-  id: string;
-  name: string;
-  brand_id: string;
-  concentration: Concentration;
-  top_notes: string[] | null;
-  middle_notes: string[] | null;
-  base_notes: string[] | null;
-  tags: ScentTag[] | null;
-  price_krw: number;
-  image_url: string | null;
-  rating: number | null;
-  review_count: number;
-  category: PerfumeCategory | null;
-  gender: '남성' | '여성' | '유니섹스' | null;
-  created_at: string;
-  brand: {
-    id: string;
-    name: string;
-    description: string | null;
-    official_url: string | null;
-    logo_url: string | null;
-    price_range: Perfume['brand']['priceRange'];
-    is_niche: boolean;
-    country: Perfume['brand']['country'];
-  };
-}
+// 조인 결과 — Supabase select('*, brand:brands(*)')의 응답 형태.
+// Database 타입엔 join이 안 잡혀서 이 한 군데만 명시적 합성.
+type PerfumeWithBrand = PerfumeRow & { brand: BrandRow };
 
-function rowToPerfume(r: PerfumeRow): Perfume {
+function rowToPerfume(r: PerfumeWithBrand): Perfume {
   return {
     id: r.id,
     name: r.name,
@@ -46,10 +23,10 @@ function rowToPerfume(r: PerfumeRow): Perfume {
       country: r.brand.country,
     },
     concentration: r.concentration,
-    top_notes: r.top_notes ?? [],
-    middle_notes: r.middle_notes ?? [],
-    base_notes: r.base_notes ?? [],
-    tags: r.tags ?? [],
+    top_notes: r.top_notes,
+    middle_notes: r.middle_notes,
+    base_notes: r.base_notes,
+    tags: r.tags,
     price_krw: r.price_krw,
     image_url: r.image_url ?? undefined,
     rating: r.rating ?? undefined,
@@ -69,22 +46,24 @@ export async function getPerfumes(): Promise<Perfume[]> {
   const { data, error } = await sb
     .from('perfumes')
     .select(SELECT_WITH_BRAND)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .returns<PerfumeWithBrand[]>();
   if (error) throw error;
-  return (data as unknown as PerfumeRow[]).map(rowToPerfume);
+  return data.map(rowToPerfume);
 }
 
 export async function getPerfumeById(id: string): Promise<Perfume | null> {
   const sb = getSupabase();
   if (!sb) return MOCK_PERFUMES.find((p) => p.id === id) ?? null;
 
+  // .maybeSingle() 뒤엔 .returns<>를 못 붙임 — 셰이프는 동일하므로 mapper에서 캐스트.
   const { data, error } = await sb
     .from('perfumes')
     .select(SELECT_WITH_BRAND)
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
-  return data ? rowToPerfume(data as unknown as PerfumeRow) : null;
+  return data ? rowToPerfume(data as unknown as PerfumeWithBrand) : null;
 }
 
 export interface SearchPerfumesParams {
@@ -133,7 +112,9 @@ export async function searchPerfumes(params: SearchPerfumesParams = {}): Promise
   if (params.brandIds?.length) {
     q = q.in('brand_id', params.brandIds);
   }
-  const { data, error } = await q.order('rating', { ascending: false, nullsFirst: false });
+  const { data, error } = await q
+    .order('rating', { ascending: false, nullsFirst: false })
+    .returns<PerfumeWithBrand[]>();
   if (error) throw error;
-  return (data as unknown as PerfumeRow[]).map(rowToPerfume);
+  return data.map(rowToPerfume);
 }

@@ -5,6 +5,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// 타입 안전성 전략:
+//   - 클라이언트 자체는 untyped (Database 제네릭 없음) — Supabase CLI gen types로
+//     자동 생성된 진짜 스키마가 들어오기 전까지는 그게 가장 안정적이에요.
+//   - 대신 각 select 호출에서 `.returns<RowType>()`로 응답 형태를 명시.
+//   - 결과: `as unknown as` 캐스트 사라지고 mapper 함수도 진짜 타입을 받음.
 let _client: SupabaseClient | null = null;
 
 /**
