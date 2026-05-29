@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Pressable,
   Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
-  Image, Dimensions,
+  Image, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { pickImages } from '../../lib/imagePicker';
 import Animated, {
@@ -18,7 +18,7 @@ import {
   COLORS, SPACING, BORDER_RADIUS, SHADOW, SCENT_COLORS, SCENT_TEXT_COLORS,
   FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
 } from '../../constants/theme';
-import { usePerfume, usePerfumes, useReviews } from '../../lib/api/hooks';
+import { usePerfume, usePerfumes, useInfiniteReviews } from '../../lib/api/hooks';
 import { useAppStore } from '../../store/useAppStore';
 import { Review } from '../../types';
 import { BottleGlyph } from '../../components/common/PerfumeCard';
@@ -38,7 +38,16 @@ export const PerfumeDetailScreen: React.FC = () => {
 
   const { data: perfume } = usePerfume(perfumeId);
   const { data: allPerfumes = [] } = usePerfumes();
-  const { data: fetchedReviews = [] } = useReviews(perfumeId);
+  const {
+    data: reviewPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteReviews(perfumeId);
+  const fetchedReviews = useMemo(
+    () => reviewPages?.pages.flatMap((p) => p.data) ?? [],
+    [reviewPages],
+  );
   const { toggleWishlist, isWishlisted, addToCollection, isInCollection, incrementReviewCount } = useAppStore();
 
   // 서버에서 받아온 리뷰 + 이번 세션에 작성한 임시 리뷰를 합쳐 보여줘요.
@@ -309,6 +318,19 @@ export const PerfumeDetailScreen: React.FC = () => {
                 )}
               </View>
             ))}
+            {hasNextPage && (
+              <Pressable
+                style={styles.loadMoreBtn}
+                onPress={() => { if (!isFetchingNextPage) fetchNextPage(); }}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? (
+                  <ActivityIndicator size="small" color={COLORS.primaryInk} />
+                ) : (
+                  <Text style={styles.loadMoreText}>리뷰 더 보기 →</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -630,6 +652,17 @@ const styles = StyleSheet.create({
   section: { marginBottom: SPACING.lg },
   sectionTitle: { fontSize: FONT_SIZES.h3, fontWeight: FONT_WEIGHTS.extrabold, color: COLORS.text, marginBottom: SPACING.md },
   emptyText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.body, lineHeight: LINE_HEIGHTS.body },
+  loadMoreBtn: {
+    height: BUTTON_HEIGHT.md,
+    marginTop: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: { fontSize: FONT_SIZES.bodySm, color: COLORS.primaryInk, fontWeight: FONT_WEIGHTS.semibold },
   reviewCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.md, padding: SPACING.md - 2, marginBottom: SPACING.sm + 2, ...SHADOW.sm },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   reviewAvatar: {

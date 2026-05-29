@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { pickImages } from '../../lib/imagePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +20,7 @@ import {
   COLORS, SPACING, BORDER_RADIUS, SHADOW,
   FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
 } from '../../constants/theme';
-import { useAllReviews, usePerfumes } from '../../lib/api/hooks';
+import { useInfiniteAllReviews, usePerfumes } from '../../lib/api/hooks';
 import { Review } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { DragSheet } from '../../components/common/DragSheet';
@@ -35,7 +36,17 @@ export const CommunityScreen: React.FC = () => {
   const isFocused = useIsFocused();
   const listRef = useRef<FlatList<any> | null>(null);
   const { incrementReviewCount } = useAppStore();
-  const { data: fetchedReviews = [] } = useAllReviews();
+  // 무한 스크롤 — 페이지 단위로 받아 평탄화
+  const {
+    data: reviewPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteAllReviews();
+  const fetchedReviews = useMemo(
+    () => reviewPages?.pages.flatMap((p) => p.data) ?? [],
+    [reviewPages],
+  );
   const { data: allPerfumes = [] } = usePerfumes();
   // 서버에서 받은 리뷰 + 이번 세션에 작성한 로컬 리뷰
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
@@ -135,6 +146,17 @@ export const CommunityScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={styles.listFooter}>
+              <ActivityIndicator color={COLORS.primaryDark} />
+            </View>
+          ) : null
+        }
         renderItem={({ item, index }) => (
           <TouchableOpacity
             style={styles.postCard}
@@ -306,6 +328,7 @@ const styles = StyleSheet.create({
   filterChipText: { fontSize: FONT_SIZES.small, color: COLORS.text, fontWeight: FONT_WEIGHTS.semibold },
   filterChipTextActive: { color: COLORS.white, fontWeight: FONT_WEIGHTS.bold },
   list: { padding: SPACING.md, paddingTop: 4, gap: 10 },
+  listFooter: { paddingVertical: SPACING.lg, alignItems: 'center' },
   postCard: {
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.lg,
