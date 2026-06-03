@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withSequence, withSpring, withTiming, withDelay,
+  interpolate, runOnJS,
+} from 'react-native-reanimated';
 import { pickImages } from '../../lib/imagePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,17 +27,22 @@ import {
   FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
 } from '../../constants/theme';
 import { useInfiniteAllReviews, usePerfumes } from '../../lib/api/hooks';
-import { Review, BoardCategory, BOARD_CATEGORIES } from '../../types';
+import { Review, BoardCategory, BOARD_CATEGORIES, Perfume } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { DragSheet } from '../../components/common/DragSheet';
 import { PressableScale } from '../../components/common/PressableScale';
 import { Button } from '../../components/common/Button';
-import { ReviewImages } from '../../components/common/ReviewImages';
+import { BottleGlyph } from '../../components/common/PerfumeCard';
+import { ImageViewer } from '../../components/common/ImageViewer';
+import { haptic } from '../../lib/haptic';
+
+type EnrichedReview = Review & { perfume?: Perfume; boardCategory: BoardCategory };
 
 // 게시판 필터 — 전체 > 자유 > 공지 > 질문 > 정보
 const FILTERS = ['전체', ...BOARD_CATEGORIES] as const;
 const AVATAR_COLORS = ['#FCE4EC', '#EBF7F1', '#FFF3E0', '#EDE7F6', '#E3F2FD', '#F3E5F5'];
 const SCREEN_W = Dimensions.get('window').width;
+const CARD_W = SCREEN_W - SPACING.md * 2; // 피드 카드 = 리스트 좌우 패딩 제외 전체 폭
 
 // 카테고리별 배지 색 (토스풍 — 옅은 톤온톤 칩)
 const CATEGORY_STYLE: Record<BoardCategory, { bg: string; fg: string }> = {
@@ -80,6 +91,17 @@ export const CommunityScreen: React.FC = () => {
     [pendingReviews, fetchedReviews],
   );
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('전체');
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const toggleLike = useCallback((id: string) => {
+    setLikedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+  const likeOn = useCallback((id: string) => {
+    setLikedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
   const [modalVisible, setModalVisible] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newRating, setNewRating] = useState(5);
@@ -203,56 +225,16 @@ export const CommunityScreen: React.FC = () => {
           ) : null
         }
         renderItem={({ item, index }) => (
-          <TouchableOpacity
-            style={styles.postCard}
-            onPress={() =>
-              item.perfume &&
-              navigation.navigate('PerfumeDetail', { perfumeId: item.perfume_id })
+          <FeedPost
+            item={item}
+            avatarColor={AVATAR_COLORS[index % AVATAR_COLORS.length]}
+            liked={likedIds.has(item.id)}
+            onToggleLike={() => toggleLike(item.id)}
+            onLikeOn={() => likeOn(item.id)}
+            onOpenPerfume={() =>
+              item.perfume && navigation.navigate('PerfumeDetail', { perfumeId: item.perfume_id })
             }
-            activeOpacity={0.85}
-          >
-            <View style={styles.postTop}>
-              <View style={[styles.avatar, { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] }]}>
-                <Text style={styles.avatarText}>{(item.nickname ?? '?')[0]}</Text>
-              </View>
-              <View style={styles.postMeta}>
-                <Text style={styles.nickname}>{item.nickname ?? '익명'}</Text>
-                <Text style={styles.date}>{item.created_at.slice(0, 10)}</Text>
-              </View>
-              <View style={[styles.tagBadge, { backgroundColor: CATEGORY_STYLE[item.boardCategory as BoardCategory].bg }]}>
-                <Text style={[styles.tagBadgeText, { color: CATEGORY_STYLE[item.boardCategory as BoardCategory].fg }]}>
-                  {item.boardCategory}
-                </Text>
-              </View>
-            </View>
-
-            {item.perfume && (
-              <Text style={styles.postTitle} numberOfLines={1}>
-                {item.perfume.brand.name} — {item.perfume.name}
-              </Text>
-            )}
-            <Text style={styles.postBody} numberOfLines={3}>{item.comment}</Text>
-
-            {item.images && item.images.length > 0 && (
-              <View style={styles.postImageWrap}>
-                <ReviewImages
-                  images={item.images}
-                  contentWidth={SCREEN_W - SPACING.md * 2 - SPACING.md * 2}
-                />
-              </View>
-            )}
-
-            <View style={styles.postFooter}>
-              <View style={styles.footerItem}>
-                <Ionicons name="heart-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.footerCount}>{pseudoCounts(item.id).likes}</Text>
-              </View>
-              <View style={styles.footerItem}>
-                <Ionicons name="chatbubble-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.footerCount}>{pseudoCounts(item.id).comments}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+          />
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -357,6 +339,276 @@ export const CommunityScreen: React.FC = () => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────
+// 인스타그램 스타일 피드 카드
+// ─────────────────────────────────────────────────────────────
+const FeedPost: React.FC<{
+  item: EnrichedReview;
+  avatarColor: string;
+  liked: boolean;
+  onToggleLike: () => void;
+  onLikeOn: () => void;
+  onOpenPerfume: () => void;
+}> = ({ item, avatarColor, liked, onToggleLike, onLikeOn, onOpenPerfume }) => {
+  const [viewer, setViewer] = useState(false);
+  const hasImages = !!item.images && item.images.length > 0;
+  const base = pseudoCounts(item.id);
+  const likeCount = base.likes + (liked ? 1 : 0);
+  const cat = CATEGORY_STYLE[item.boardCategory];
+
+  // 더블탭 좋아요 → 중앙 하트 팝
+  const burst = useSharedValue(0);
+  const popBurst = () => {
+    burst.value = withSequence(
+      withSpring(1, { damping: 8, stiffness: 220 }),
+      withDelay(280, withTiming(0, { duration: 200 })),
+    );
+  };
+  const burstStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(burst.value, [0, 0.08, 1], [0, 1, 1]),
+    transform: [{ scale: burst.value }],
+  }));
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDuration(260)
+    .onEnd(() => {
+      runOnJS(onLikeOn)();
+      runOnJS(haptic)('light');
+      popBurst();
+    });
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      if (hasImages) runOnJS(setViewer)(true);
+      else if (item.perfume) runOnJS(onOpenPerfume)();
+    });
+  const mediaGesture = Gesture.Exclusive(doubleTap, singleTap);
+
+  return (
+    <View style={feed.card}>
+      {/* 헤더 */}
+      <View style={feed.header}>
+        <View style={[feed.avatar, { backgroundColor: avatarColor }]}>
+          <Text style={feed.avatarText}>{(item.nickname ?? '?')[0]}</Text>
+        </View>
+        <Text style={feed.nickname} numberOfLines={1}>{item.nickname ?? '익명'}</Text>
+        <View style={[feed.catChip, { backgroundColor: cat.bg }]}>
+          <Text style={[feed.catText, { color: cat.fg }]}>{item.boardCategory}</Text>
+        </View>
+      </View>
+
+      {/* 미디어 — 더블탭 좋아요 / 단일탭 자세히 */}
+      <GestureDetector gesture={mediaGesture}>
+        <View style={feed.media}>
+          {hasImages ? (
+            <>
+              <Image source={{ uri: item.images![0] }} style={feed.image} />
+              {item.images!.length > 1 && (
+                <View style={feed.countBadge}>
+                  <Text style={feed.countBadgeText}>1/{item.images!.length}</Text>
+                </View>
+              )}
+            </>
+          ) : item.perfume ? (
+            <LinearGradient
+              colors={['#F0F8F3', '#DCF1E2']}
+              start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+              style={feed.fill}
+            >
+              <BottleGlyph perfume={item.perfume} size={96} />
+            </LinearGradient>
+          ) : (
+            <LinearGradient
+              colors={[COLORS.primaryLight, COLORS.secondary]}
+              start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+              style={[feed.fill, { paddingHorizontal: SPACING.xl }]}
+            >
+              <Text style={feed.quote} numberOfLines={5}>“{item.comment}”</Text>
+            </LinearGradient>
+          )}
+          <Animated.View pointerEvents="none" style={[feed.burst, burstStyle]}>
+            <Ionicons name="heart" size={96} color="rgba(255,255,255,0.95)" />
+          </Animated.View>
+        </View>
+      </GestureDetector>
+
+      {/* 액션 바 */}
+      <View style={feed.actions}>
+        <TouchableOpacity onPress={onToggleLike} hitSlop={8} activeOpacity={0.7}>
+          <Ionicons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={26}
+            color={liked ? COLORS.accentInk : COLORS.text}
+          />
+        </TouchableOpacity>
+        <View style={feed.commentIcon}>
+          <Ionicons name="chatbubble-outline" size={23} color={COLORS.text} />
+        </View>
+        {item.perfume && (
+          <TouchableOpacity onPress={onOpenPerfume} hitSlop={8} activeOpacity={0.7} style={feed.bagIcon}>
+            <Ionicons name="bag-handle-outline" size={23} color={COLORS.text} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <Text style={feed.likeCount}>좋아요 {likeCount.toLocaleString()}개</Text>
+
+      {/* 텍스트 전용 글은 미디어에 이미 본문이 보이므로 작성자만 표기 */}
+      {hasImages || item.perfume ? (
+        <Text style={feed.caption}>
+          <Text style={feed.captionName}>{item.nickname ?? '익명'} </Text>
+          {item.comment}
+        </Text>
+      ) : (
+        <Text style={[feed.caption, feed.captionName]}>{item.nickname ?? '익명'}</Text>
+      )}
+
+      {item.perfume && (
+        <TouchableOpacity onPress={onOpenPerfume} activeOpacity={0.7} style={feed.perfumeLink}>
+          <Ionicons name="pricetag-outline" size={12} color={COLORS.primaryInk} />
+          <Text style={feed.perfumeLinkText} numberOfLines={1}>
+            {item.perfume.brand.name} · {item.perfume.name}
+          </Text>
+          <Ionicons name="chevron-forward" size={12} color={COLORS.primaryInk} />
+        </TouchableOpacity>
+      )}
+
+      {base.comments > 0 && (
+        <Text style={feed.commentsLink}>댓글 {base.comments}개 모두 보기</Text>
+      )}
+
+      <Text style={feed.date}>{item.created_at.slice(0, 10)}</Text>
+
+      {hasImages && (
+        <ImageViewer
+          visible={viewer}
+          images={item.images!}
+          initialIndex={0}
+          onClose={() => setViewer(false)}
+        />
+      )}
+    </View>
+  );
+};
+
+const feed = StyleSheet.create({
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingBottom: SPACING.sm,
+    ...SHADOW.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+  },
+  avatar: {
+    width: 34, height: 34, borderRadius: 9999,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarText: { color: COLORS.text, fontWeight: FONT_WEIGHTS.extrabold, fontSize: 13 },
+  nickname: { flex: 1, fontSize: FONT_SIZES.bodySm, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text },
+  catChip: {
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  catText: { fontSize: 10, fontWeight: FONT_WEIGHTS.bold },
+
+  media: {
+    width: CARD_W,
+    height: CARD_W,
+    backgroundColor: COLORS.gray100,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  image: { width: '100%', height: '100%' },
+  fill: {
+    width: '100%', height: '100%',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  quote: {
+    fontSize: FONT_SIZES.h3,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.primaryDeep,
+    textAlign: 'center',
+    lineHeight: LINE_HEIGHTS.h3 * 1.4,
+  },
+  countBadge: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  countBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: FONT_WEIGHTS.bold },
+  burst: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: SPACING.md,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  commentIcon: { transform: [{ scaleX: -1 }] }, // 말풍선 꼬리 방향 (IG 느낌)
+  bagIcon: {},
+
+  likeCount: {
+    paddingHorizontal: SPACING.md,
+    fontSize: FONT_SIZES.bodySm,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.text,
+    marginTop: 2,
+  },
+  caption: {
+    paddingHorizontal: SPACING.md,
+    fontSize: FONT_SIZES.bodySm,
+    color: COLORS.text,
+    lineHeight: LINE_HEIGHTS.bodySm * 1.45,
+    marginTop: 3,
+  },
+  captionName: { fontWeight: FONT_WEIGHTS.bold },
+  perfumeLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginHorizontal: SPACING.md,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.secondary,
+  },
+  perfumeLinkText: {
+    fontSize: FONT_SIZES.caption,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.primaryInk,
+    maxWidth: CARD_W * 0.7,
+  },
+  commentsLink: {
+    paddingHorizontal: SPACING.md,
+    fontSize: FONT_SIZES.bodySm,
+    color: COLORS.textLight,
+    marginTop: 8,
+  },
+  date: {
+    paddingHorizontal: SPACING.md,
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 6,
+  },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
@@ -400,39 +652,8 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: COLORS.primaryDark },
   categoryChipText: { fontSize: FONT_SIZES.bodySm, color: COLORS.gray600, fontWeight: FONT_WEIGHTS.semibold },
   categoryChipTextActive: { color: COLORS.white, fontWeight: FONT_WEIGHTS.bold },
-  list: { padding: SPACING.md, paddingTop: 4, gap: 10 },
+  list: { paddingHorizontal: SPACING.md, paddingTop: 4, paddingBottom: SPACING.md, gap: 14 },
   listFooter: { paddingVertical: SPACING.lg, alignItems: 'center' },
-  postCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    ...SHADOW.sm,
-  },
-  postTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: { color: COLORS.text, fontWeight: FONT_WEIGHTS.extrabold, fontSize: 12 },
-  postMeta: { flex: 1 },
-  nickname: { fontSize: FONT_SIZES.bodySm, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text },
-  date: { fontSize: 11, color: COLORS.textLight, marginTop: 1 },
-  tagBadge: {
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  tagBadgeText: { fontSize: 10, fontWeight: FONT_WEIGHTS.bold, color: COLORS.primaryInk },
-  postTitle: { fontSize: 15, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text, marginBottom: 4, lineHeight: 20 },
-  postBody: { fontSize: FONT_SIZES.bodySm, color: COLORS.textSecondary, lineHeight: LINE_HEIGHTS.bodySm * 1.55, marginBottom: 12 },
-  postImageWrap: { marginBottom: 12 },
-  postFooter: { flexDirection: 'row', gap: 16 },
-  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  footerCount: { fontSize: 12, color: COLORS.textSecondary, fontWeight: FONT_WEIGHTS.semibold },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: SPACING.lg, gap: SPACING.sm },
   emptyTitle: { color: COLORS.text, fontSize: FONT_SIZES.h3, fontWeight: FONT_WEIGHTS.extrabold, marginTop: SPACING.xs },
   emptySub: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodySm, textAlign: 'center', lineHeight: LINE_HEIGHTS.bodySm * 1.5 },
