@@ -18,7 +18,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { usePerfumes } from '../../lib/api/hooks';
 import { getScentTagInfo } from '../../lib/scentInfo';
 import { BottleGlyph } from '../../components/common/PerfumeCard';
-import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import { WishlistHeart } from '../../components/common/WishlistHeart';
 import { haptic } from '../../lib/haptic';
 import { Perfume, ScentTag } from '../../types';
@@ -269,32 +269,21 @@ export const ScentGachaScreen: React.FC = () => {
               <Text style={styles.storyText}>{pulledStory}</Text>
             </View>
 
-            <PressableScale
-              style={styles.primaryBtn}
+            <Button
+              title="이 향 자세히 보기"
+              icon="information-circle-outline"
               onPress={() => navigation.replace('PerfumeDetail', { perfumeId: pulledPerfume.id })}
-              haptic="light"
-            >
-              <Ionicons name="information-circle-outline" size={18} color={COLORS.white} />
-              <Text style={styles.primaryBtnText}>이 향 자세히 보기</Text>
-            </PressableScale>
+            />
 
-            <PressableScale
-              style={styles.secondaryBtn}
+            <Button
+              variant="outline"
+              title={pulledHearted ? '위시리스트에 담겨있어요' : '위시리스트에 담기'}
+              icon={pulledHearted ? 'heart' : 'heart-outline'}
               onPress={() => {
                 toggleWishlist(pulledPerfume);
                 showToast(pulledHearted ? '위시리스트에서 뺐어요' : '위시리스트에 담았어요');
               }}
-              haptic="light"
-            >
-              <Ionicons
-                name={pulledHearted ? 'heart' : 'heart-outline'}
-                size={18}
-                color={COLORS.primaryInk}
-              />
-              <Text style={styles.secondaryBtnText}>
-                {pulledHearted ? '위시리스트에 담겨있어요' : '위시리스트에 담기'}
-              </Text>
-            </PressableScale>
+            />
 
             <Text style={styles.tomorrow}>내일 새로운 향과 만나요</Text>
           </Animated.View>
@@ -303,17 +292,14 @@ export const ScentGachaScreen: React.FC = () => {
             <Text style={styles.idleHint}>
               랜덤으로 뽑힌 향에{'\n'}오늘만의 짧은 이야기를 더해 드릴게요.
             </Text>
-            <PressableScale
-              style={[styles.primaryBtn, phase === 'pulling' && styles.primaryBtnDisabled]}
+            <Button
+              title={phase === 'pulling' ? '뽑는 중…' : '오늘의 향 뽑기'}
+              icon="sparkles"
               onPress={handlePull}
               haptic="medium"
+              loading={phase === 'pulling'}
               disabled={phase === 'pulling'}
-            >
-              <Ionicons name="sparkles" size={18} color={COLORS.white} />
-              <Text style={styles.primaryBtnText}>
-                {phase === 'pulling' ? '뽑는 중…' : '오늘의 향 뽑기'}
-              </Text>
-            </PressableScale>
+            />
           </Animated.View>
         )}
 
@@ -355,18 +341,47 @@ export const ScentGachaScreen: React.FC = () => {
 // ─────────────────────────────────────────────────────────────
 // 카드들
 // ─────────────────────────────────────────────────────────────
+// 캡슐 가챠폰 머신 — 유리 돔(캡슐) + 그린 본체 + 손잡이 + 배출구
+const CAPSULE_COLORS = [
+  '#FBDCE8', '#FDF1C4', '#D8EEFC', '#EBDFF1',
+  '#D9ECCF', '#F8D6C8', '#CFEDEF', '#F7DDE6', '#F6DEB6',
+];
+
 const IdleCard: React.FC = () => (
-  <LinearGradient
-    colors={[COLORS.primaryLight, COLORS.secondary]}
-    start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-    style={styles.heroCard}
-  >
-    {/* 물음표 실루엣 — 아직 어떤 향인지 모름 */}
-    <View style={styles.questionWrap}>
-      <Text style={styles.questionMark}>?</Text>
+  <View style={styles.machineWrap}>
+    {/* 유리 돔 — 안에 알록달록 캡슐 */}
+    <View style={styles.dome}>
+      <View style={styles.domeInner}>
+        {CAPSULE_COLORS.map((c, i) => (
+          <View key={i} style={[styles.capsule, { backgroundColor: c }]}>
+            <View style={styles.capsuleShine} />
+          </View>
+        ))}
+      </View>
+      {/* 유리 반사광 */}
+      <View style={styles.domeGlare} />
     </View>
-    <Text style={styles.heroHint}>탭해서 뽑아 보세요</Text>
-  </LinearGradient>
+
+    {/* 본체 */}
+    <LinearGradient
+      colors={[COLORS.primaryDark, COLORS.primaryInk]}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={styles.machineBody}
+    >
+      <View style={styles.controlRow}>
+        {/* 손잡이 */}
+        <View style={styles.knob}>
+          <View style={styles.knobBar} />
+        </View>
+        {/* 코인 투입구 */}
+        <View style={styles.coinSlot} />
+      </View>
+      {/* 캡슐 배출구 */}
+      <View style={styles.tray}>
+        <View style={styles.trayMouth} />
+      </View>
+    </LinearGradient>
+  </View>
 );
 
 const RevealedCard: React.FC<{ perfume: Perfume }> = ({ perfume }) => {
@@ -428,23 +443,111 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...SHADOW.md,
   },
-  questionWrap: {
-    width: 120, height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: SPACING.sm,
+  // ── 캡슐 가챠폰 머신 ──────────────────────────────
+  machineWrap: {
+    height: 260,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  questionMark: {
-    fontSize: 64,
-    fontWeight: FONT_WEIGHTS.black,
-    color: COLORS.primaryDark,
-    letterSpacing: -2,
+  dome: {
+    width: 184,
+    height: 150,
+    borderTopLeftRadius: 92,
+    borderTopRightRadius: 92,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 3,
+    borderColor: COLORS.white,
+    overflow: 'hidden',
+    zIndex: 2,
+    ...SHADOW.md,
   },
-  heroHint: {
-    fontSize: FONT_SIZES.bodySm,
-    color: COLORS.primaryInk,
-    fontWeight: FONT_WEIGHTS.semibold,
+  domeInner: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 22,
+    paddingTop: 26,
+  },
+  capsule: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  capsuleShine: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginTop: 5,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+  },
+  domeGlare: {
+    position: 'absolute',
+    top: 14,
+    left: 22,
+    width: 38,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    transform: [{ rotate: '20deg' }],
+  },
+  machineBody: {
+    width: 206,
+    marginTop: -16,
+    paddingTop: 26,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    gap: SPACING.sm + 2,
+    zIndex: 1,
+    ...SHADOW.md,
+  },
+  controlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  knob: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  knobBar: {
+    width: 26,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.primaryInk,
+  },
+  coinSlot: {
+    width: 9,
+    height: 30,
+    borderRadius: 5,
+    backgroundColor: 'rgba(0,0,0,0.22)',
+  },
+  tray: {
+    width: '100%',
+    height: 42,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trayMouth: {
+    width: 110,
+    height: 22,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.28)',
   },
 
   idleActions: { alignItems: 'center', gap: SPACING.md },

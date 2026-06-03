@@ -19,6 +19,7 @@ import { getNoteInfo } from '../../lib/scentInfo';
 import { usePerfumes } from '../../lib/api/hooks';
 import { useAppStore } from '../../store/useAppStore';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import { BottleGlyph } from '../../components/common/PerfumeCard';
 import { HyangiAvatar } from '../../components/common/HyangiAvatar';
 import { ScentTag, Perfume } from '../../types';
@@ -265,10 +266,7 @@ export const MoodQuizScreen: React.FC = () => {
           <Text style={styles.emptyOwnedSub}>
             먼저 마음에 드는 향수를 위시리스트에 담아 두면{'\n'}그 안에서 오늘의 한 가지를 골라 드릴게요.
           </Text>
-          <PressableScale style={styles.primaryBtn} onPress={restart} haptic="light">
-            <Ionicons name="refresh" size={20} color={COLORS.white} />
-            <Text style={styles.primaryBtnText}>다시 답해 볼래요</Text>
-          </PressableScale>
+          <Button title="다시 답해 볼래요" icon="refresh" fullWidth={false} onPress={restart} />
         </View>
       </SafeAreaView>
     );
@@ -374,40 +372,31 @@ export const MoodQuizScreen: React.FC = () => {
           </Animated.View>
 
           <Animated.View entering={FadeIn.duration(420).delay(320)} style={styles.resultActions}>
-            <PressableScale
-              style={[styles.primaryBtn, matchedWishlisted && styles.primaryBtnActive]}
+            <Button
+              variant={matchedWishlisted ? 'outline' : 'primary'}
+              title={matchedWishlisted ? '위시리스트에 담겨있어요' : '위시리스트에 담기'}
+              icon={matchedWishlisted ? 'heart' : 'heart-outline'}
+              haptic="medium"
               onPress={() => {
                 toggleWishlist(matched);
                 showToast(matchedWishlisted ? '위시리스트에서 뺐어요' : '위시리스트에 담았어요');
               }}
-              haptic="medium"
-            >
-              <Ionicons
-                name={matchedWishlisted ? 'heart' : 'heart-outline'}
-                size={20}
-                color={COLORS.white}
-              />
-              <Text style={styles.primaryBtnText}>
-                {matchedWishlisted ? '위시리스트에 담겨있어요' : '위시리스트에 담기'}
-              </Text>
-            </PressableScale>
+            />
 
-            <PressableScale style={styles.secondaryBtn} onPress={restart} haptic="light">
-              <Ionicons name="refresh" size={18} color={COLORS.primaryInk} />
-              <Text style={styles.secondaryBtnText}>다시 추천</Text>
-            </PressableScale>
-            <PressableScale
-              style={styles.secondaryBtn}
+            <Button
+              variant="outline"
+              title="다시 추천"
+              icon="refresh"
+              onPress={restart}
+            />
+            <Button
+              variant="outline"
+              title="자세히 보기"
+              icon="information-circle-outline"
               onPress={() => navigation.replace('PerfumeDetail', { perfumeId: matched.id })}
-              haptic="light"
-            >
-              <Ionicons name="information-circle-outline" size={18} color={COLORS.primaryInk} />
-              <Text style={styles.secondaryBtnText}>자세히 보기</Text>
-            </PressableScale>
+            />
 
-            <Pressable onPress={() => navigation.goBack()} style={styles.exitBtn}>
-              <Text style={styles.exitBtnText}>닫기</Text>
-            </Pressable>
+            <Button variant="ghost" title="닫기" onPress={() => navigation.goBack()} />
           </Animated.View>
         </ScrollView>
       </SafeAreaView>

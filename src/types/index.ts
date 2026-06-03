@@ -48,6 +48,10 @@ export interface Perfume {
   created_at: string;
 }
 
+// 커뮤니티 게시판 카테고리 — 자유 > 공지 > 질문 > 정보
+export const BOARD_CATEGORIES = ['자유', '공지', '질문', '정보'] as const;
+export type BoardCategory = (typeof BOARD_CATEGORIES)[number];
+
 export interface Review {
   id: string;
   user_id: string;
@@ -57,6 +61,7 @@ export interface Review {
   created_at: string;
   nickname?: string;
   images?: string[]; // 첨부 이미지 URI 배열
+  category?: BoardCategory; // 커뮤니티 게시판 카테고리
 }
 
 export interface WishlistItem {

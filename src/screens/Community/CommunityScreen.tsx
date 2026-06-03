@@ -21,15 +21,40 @@ import {
   FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
 } from '../../constants/theme';
 import { useInfiniteAllReviews, usePerfumes } from '../../lib/api/hooks';
-import { Review } from '../../types';
+import { Review, BoardCategory, BOARD_CATEGORIES } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { DragSheet } from '../../components/common/DragSheet';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import { ReviewImages } from '../../components/common/ReviewImages';
 
-const FILTERS = ['전체', '플로럴', '데이트', '질문', '정보', '자랑'];
+// 게시판 필터 — 전체 > 자유 > 공지 > 질문 > 정보
+const FILTERS = ['전체', ...BOARD_CATEGORIES] as const;
 const AVATAR_COLORS = ['#FCE4EC', '#EBF7F1', '#FFF3E0', '#EDE7F6', '#E3F2FD', '#F3E5F5'];
 const SCREEN_W = Dimensions.get('window').width;
+
+// 카테고리별 배지 색 (토스풍 — 옅은 톤온톤 칩)
+const CATEGORY_STYLE: Record<BoardCategory, { bg: string; fg: string }> = {
+  '자유': { bg: COLORS.secondary, fg: COLORS.primaryInk },
+  '공지': { bg: '#FFF3E0', fg: '#C77F1B' },
+  '질문': { bg: '#E3F2FD', fg: '#3A6FA8' },
+  '정보': { bg: '#EDE7F6', fg: '#6A4BA8' },
+};
+
+// 카테고리가 없는 (mock) 리뷰는 id 기반 안정 해시로 배정 — 렌더마다 흔들리지 않게
+function categoryOf(r: Review): BoardCategory {
+  if (r.category) return r.category;
+  let h = 0;
+  for (let i = 0; i < r.id.length; i++) h = (h * 31 + r.id.charCodeAt(i)) >>> 0;
+  return BOARD_CATEGORIES[h % BOARD_CATEGORIES.length];
+}
+
+// like/comment 수도 id 해시로 안정화 (실데이터 연결 전 placeholder)
+function pseudoCounts(id: string): { likes: number; comments: number } {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 131 + id.charCodeAt(i)) >>> 0;
+  return { likes: h % 80, comments: (h >> 8) % 24 };
+}
 
 export const CommunityScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -50,11 +75,15 @@ export const CommunityScreen: React.FC = () => {
   const { data: allPerfumes = [] } = usePerfumes();
   // 서버에서 받은 리뷰 + 이번 세션에 작성한 로컬 리뷰
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
-  const reviews = [...pendingReviews, ...fetchedReviews];
-  const [activeFilter, setActiveFilter] = useState('전체');
+  const reviews = useMemo(
+    () => [...pendingReviews, ...fetchedReviews],
+    [pendingReviews, fetchedReviews],
+  );
+  const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('전체');
   const [modalVisible, setModalVisible] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newRating, setNewRating] = useState(5);
+  const [newCategory, setNewCategory] = useState<BoardCategory>('자유');
   const [newImages, setNewImages] = useState<string[]>([]);
 
   const MAX_IMAGES = 3;
@@ -84,27 +113,43 @@ export const CommunityScreen: React.FC = () => {
     return unsub;
   }, [navigation, isFocused]);
 
-  const enrichedReviews = reviews.map((r) => ({
-    ...r,
-    perfume: allPerfumes.find((p) => p.id === r.perfume_id),
-  }));
+  // 향수 빠른 조회용 맵 — 매 리뷰마다 find() 하던 O(n·m) 제거
+  const perfumeById = useMemo(() => {
+    const m = new Map<string, typeof allPerfumes[number]>();
+    allPerfumes.forEach((p) => m.set(p.id, p));
+    return m;
+  }, [allPerfumes]);
+
+  const enrichedReviews = useMemo(
+    () =>
+      reviews
+        .map((r) => ({
+          ...r,
+          perfume: r.perfume_id ? perfumeById.get(r.perfume_id) : undefined,
+          boardCategory: categoryOf(r),
+        }))
+        .filter((r) => activeFilter === '전체' || r.boardCategory === activeFilter),
+    [reviews, perfumeById, activeFilter],
+  );
 
   const handleSubmit = () => {
     if (!newComment.trim()) return;
     const review: Review = {
       id: Date.now().toString(),
       user_id: 'me',
-      perfume_id: '1',
+      perfume_id: '',
       rating: newRating,
       comment: newComment,
       created_at: new Date().toISOString(),
       nickname: '나',
+      category: newCategory,
       images: newImages.length > 0 ? [...newImages] : undefined,
     };
     setPendingReviews((prev) => [review, ...prev]);
     incrementReviewCount();
     setNewComment('');
     setNewRating(5);
+    setNewCategory('자유');
     setNewImages([]);
     setModalVisible(false);
   };
@@ -174,11 +219,11 @@ export const CommunityScreen: React.FC = () => {
                 <Text style={styles.nickname}>{item.nickname ?? '익명'}</Text>
                 <Text style={styles.date}>{item.created_at.slice(0, 10)}</Text>
               </View>
-              {item.perfume && (
-                <View style={styles.tagBadge}>
-                  <Text style={styles.tagBadgeText}>#{item.perfume.tags[0] ?? '향수'}</Text>
-                </View>
-              )}
+              <View style={[styles.tagBadge, { backgroundColor: CATEGORY_STYLE[item.boardCategory as BoardCategory].bg }]}>
+                <Text style={[styles.tagBadgeText, { color: CATEGORY_STYLE[item.boardCategory as BoardCategory].fg }]}>
+                  {item.boardCategory}
+                </Text>
+              </View>
             </View>
 
             {item.perfume && (
@@ -200,11 +245,11 @@ export const CommunityScreen: React.FC = () => {
             <View style={styles.postFooter}>
               <View style={styles.footerItem}>
                 <Ionicons name="heart-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.footerCount}>{item.rating * 5}</Text>
+                <Text style={styles.footerCount}>{pseudoCounts(item.id).likes}</Text>
               </View>
               <View style={styles.footerItem}>
                 <Ionicons name="chatbubble-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.footerCount}>{index + 1}</Text>
+                <Text style={styles.footerCount}>{pseudoCounts(item.id).comments}</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -231,6 +276,23 @@ export const CommunityScreen: React.FC = () => {
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalLabel}>게시판</Text>
+            <View style={styles.categoryRow}>
+              {BOARD_CATEGORIES.map((c) => (
+                <PressableScale
+                  key={c}
+                  style={[styles.categoryChip, newCategory === c && styles.categoryChipActive]}
+                  onPress={() => setNewCategory(c)}
+                  haptic="selection"
+                  scaleTo={0.94}
+                >
+                  <Text style={[styles.categoryChipText, newCategory === c && styles.categoryChipTextActive]}>
+                    {c}
+                  </Text>
+                </PressableScale>
+              ))}
+            </View>
+
             <Text style={styles.modalLabel}>별점</Text>
             <View style={styles.starSelect}>
               {Array.from({ length: 5 }).map((_, i) => (
@@ -283,9 +345,11 @@ export const CommunityScreen: React.FC = () => {
               )}
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-              <Text style={styles.submitBtnText}>등록하기</Text>
-            </TouchableOpacity>
+            <Button
+              title="등록하기"
+              onPress={handleSubmit}
+              disabled={!newComment.trim()}
+            />
           </ScrollView>
         </View>
       </DragSheet>
@@ -312,21 +376,30 @@ const styles = StyleSheet.create({
     paddingRight: SPACING.md + 4,
     gap: SPACING.sm - 2,
   },
-  // WishlistScreen의 sortChip과 동일한 사이즈/스타일로 통일
+  // 토스풍 플랫 세그먼트 칩 — idle은 옅은 회색, active는 진녹색
   filterChip: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    minHeight: 36,
+    paddingVertical: 7,
+    minHeight: 34,
     justifyContent: 'center',
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOW.sm,
+    backgroundColor: COLORS.gray100,
   },
-  filterChipActive: { backgroundColor: COLORS.primaryDark, borderColor: COLORS.primaryDark },
-  filterChipText: { fontSize: FONT_SIZES.small, color: COLORS.text, fontWeight: FONT_WEIGHTS.semibold },
+  filterChipActive: { backgroundColor: COLORS.primaryDark },
+  filterChipText: { fontSize: FONT_SIZES.small, color: COLORS.gray600, fontWeight: FONT_WEIGHTS.semibold },
   filterChipTextActive: { color: COLORS.white, fontWeight: FONT_WEIGHTS.bold },
+
+  // 작성 시트 카테고리 선택 칩
+  categoryRow: { flexDirection: 'row', gap: SPACING.sm - 2, marginBottom: SPACING.lg },
+  categoryChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.gray100,
+  },
+  categoryChipActive: { backgroundColor: COLORS.primaryDark },
+  categoryChipText: { fontSize: FONT_SIZES.bodySm, color: COLORS.gray600, fontWeight: FONT_WEIGHTS.semibold },
+  categoryChipTextActive: { color: COLORS.white, fontWeight: FONT_WEIGHTS.bold },
   list: { padding: SPACING.md, paddingTop: 4, gap: 10 },
   listFooter: { paddingVertical: SPACING.lg, alignItems: 'center' },
   postCard: {

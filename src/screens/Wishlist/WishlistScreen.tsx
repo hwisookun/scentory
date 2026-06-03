@@ -9,6 +9,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { PerfumeCard } from '../../components/common/PerfumeCard';
 import { NumberTicker } from '../../components/common/NumberTicker';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import { EmptyHeartFloat } from '../../components/common/EmptyHeartFloat';
 import { FolderPicker } from '../../components/common/FolderPicker';
 import { FolderFilterSheet } from '../../components/common/FolderFilterSheet';
@@ -137,9 +138,7 @@ export const WishlistScreen: React.FC = () => {
           <EmptyHeartFloat size={84} color={COLORS.primaryLight} />
           <Text style={styles.emptyTitle}>아직 좋아한 향이 없어요</Text>
           <Text style={styles.emptySubtitle}>찾아보기에서 마음에 드는 향수를{'\n'}하트로 저장해 보세요.</Text>
-          <TouchableOpacity style={styles.exploreBtn} onPress={() => navigation.navigate('찾아보기')}>
-            <Text style={styles.exploreBtnText}>향수 탐색하기</Text>
-          </TouchableOpacity>
+          <Button title="향수 탐색하기" fullWidth={false} onPress={() => navigation.navigate('찾아보기')} />
         </View>
       ) : (
         <FlatList

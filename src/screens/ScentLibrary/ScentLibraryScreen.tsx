@@ -15,6 +15,7 @@ import { Perfume, ScentTag } from '../../types';
 import { getScentTagInfo } from '../../lib/scentInfo';
 import { DragSheet } from '../../components/common/DragSheet';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import { haptic } from '../../lib/haptic';
 
 type Tab = 'all' | 'wish' | 'coll';
@@ -25,12 +26,25 @@ export const ScentLibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const wishlist = useAppStore((s) => s.wishlist);
   const collections = useAppStore((s) => s.collections);
+  const diary = useAppStore((s) => s.perfumeDiary);
 
-  const [tab, setTab] = useState<Tab>('all');
+  // 도감은 '보유(컬렉션)'를 기본으로 본다.
+  const [tab, setTab] = useState<Tab>('coll');
   const [openTag, setOpenTag] = useState<ScentTag | null>(null);
 
   const wishPerfumes = useMemo(() => wishlist.map((w) => w.perfume), [wishlist]);
   const collPerfumes = useMemo(() => collections.map((c) => c.perfume), [collections]);
+
+  // 사용 인증 — 다이어리에 실제로 기록(착용)한 향수만 '인증'으로 친다.
+  // (리뷰는 보유·사용과 무관하게 쓸 수 있어 신호로 쓰지 않음.)
+  const verifiedIds = useMemo(
+    () => new Set(Object.values(diary).map((e) => e.perfumeId)),
+    [diary],
+  );
+  const verifiedCount = useMemo(
+    () => collPerfumes.filter((p) => verifiedIds.has(p.id)).length,
+    [collPerfumes, verifiedIds],
+  );
 
   // 현재 탭에 따른 향수 풀 (중복 제거)
   const pool = useMemo<Perfume[]>(() => {
@@ -87,16 +101,18 @@ export const ScentLibraryScreen: React.FC = () => {
             <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
           </View>
           <Text style={styles.progressHint}>
-            위시리스트와 컬렉션에 담긴 향수들을 향 계열별로 모아 봤어요.
+            {verifiedCount > 0
+              ? `내 향수로 담은 향을 향 계열별로 모았어요. 그중 ${verifiedCount}개는 다이어리 기록으로 ‘사용 인증’됐어요.`
+              : '‘내 향수로 담기’로 보유한 향을 모아요. 다이어리에 기록하면 ‘사용 인증’이 붙어요.'}
           </Text>
         </Animated.View>
 
-        {/* 탭 */}
+        {/* 탭 — 보유(도감) 우선 */}
         <View style={styles.tabRow}>
           {([
+            { v: 'coll', label: '보유' },
+            { v: 'wish', label: '위시(찜)' },
             { v: 'all', label: '전체' },
-            { v: 'wish', label: '위시리스트' },
-            { v: 'coll', label: '컬렉션' },
           ] as { v: Tab; label: string }[]).map((t) => (
             <PressableScale
               key={t.v}
@@ -167,6 +183,7 @@ export const ScentLibraryScreen: React.FC = () => {
         onClose={() => setOpenTag(null)}
         wishPerfumes={wishPerfumes}
         collPerfumes={collPerfumes}
+        verifiedIds={verifiedIds}
       />
     </SafeAreaView>
   );
@@ -181,7 +198,8 @@ const FamilyDetailSheet: React.FC<{
   onClose: () => void;
   wishPerfumes: Perfume[];
   collPerfumes: Perfume[];
-}> = ({ tag, tab, onClose, wishPerfumes, collPerfumes }) => {
+  verifiedIds: Set<string>;
+}> = ({ tag, tab, onClose, wishPerfumes, collPerfumes, verifiedIds }) => {
   const navigation = useNavigation<any>();
   const info = tag ? getScentTagInfo(tag) : null;
 
@@ -251,31 +269,31 @@ const FamilyDetailSheet: React.FC<{
               <Text style={sheetStyles.emptySub}>
                 찾아보기에서 {tag} 향수를 만나 보세요.
               </Text>
-              <PressableScale
-                style={sheetStyles.exploreBtn}
+              <Button
+                title={`${tag} 향수 둘러보기`}
+                icon="search"
+                fullWidth={false}
                 onPress={() => { onClose(); setTimeout(() => navigation.navigate('Search'), 200); }}
-                haptic="light"
-              >
-                <Ionicons name="search" size={16} color={COLORS.white} />
-                <Text style={sheetStyles.exploreBtnText}>{tag} 향수 둘러보기</Text>
-              </PressableScale>
+              />
             </View>
           ) : (
             <View style={{ gap: SPACING.md }}>
-              {wishMatches.length > 0 && (
-                <PerfumeGroup
-                  title="위시리스트"
-                  icon="heart"
-                  perfumes={wishMatches}
-                  onPress={openPerfume}
-                />
-              )}
               {collMatches.length > 0 && (
                 <PerfumeGroup
-                  title="컬렉션"
+                  title="보유"
                   icon="albums"
                   perfumes={collMatches}
                   onPress={openPerfume}
+                  verifiedIds={verifiedIds}
+                />
+              )}
+              {wishMatches.length > 0 && (
+                <PerfumeGroup
+                  title="위시(찜)"
+                  icon="heart"
+                  perfumes={wishMatches}
+                  onPress={openPerfume}
+                  verifiedIds={verifiedIds}
                 />
               )}
             </View>
@@ -305,7 +323,8 @@ const PerfumeGroup: React.FC<{
   icon: keyof typeof Ionicons.glyphMap;
   perfumes: Perfume[];
   onPress: (id: string) => void;
-}> = ({ title, icon, perfumes, onPress }) => (
+  verifiedIds: Set<string>;
+}> = ({ title, icon, perfumes, onPress, verifiedIds }) => (
   <View>
     <View style={sheetStyles.groupHeader}>
       <Ionicons name={icon} size={14} color={COLORS.primaryInk} />
@@ -313,21 +332,30 @@ const PerfumeGroup: React.FC<{
       <Text style={sheetStyles.groupCount}>{perfumes.length}</Text>
     </View>
     <View style={{ gap: 6 }}>
-      {perfumes.map((p) => (
-        <Pressable
-          key={p.id}
-          onPress={() => { haptic('selection'); onPress(p.id); }}
-          style={sheetStyles.perfumeRow}
-          android_ripple={{ color: COLORS.primaryLight }}
-        >
-          <Image source={{ uri: p.image_url }} style={sheetStyles.perfumeImg} />
-          <View style={{ flex: 1 }}>
-            <Text style={sheetStyles.perfumeBrand} numberOfLines={1}>{p.brand.name}</Text>
-            <Text style={sheetStyles.perfumeName} numberOfLines={1}>{p.name}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
-        </Pressable>
-      ))}
+      {perfumes.map((p) => {
+        const verified = verifiedIds.has(p.id);
+        return (
+          <Pressable
+            key={p.id}
+            onPress={() => { haptic('selection'); onPress(p.id); }}
+            style={sheetStyles.perfumeRow}
+            android_ripple={{ color: COLORS.primaryLight }}
+          >
+            <Image source={{ uri: p.image_url }} style={sheetStyles.perfumeImg} />
+            <View style={{ flex: 1 }}>
+              <Text style={sheetStyles.perfumeBrand} numberOfLines={1}>{p.brand.name}</Text>
+              <Text style={sheetStyles.perfumeName} numberOfLines={1}>{p.name}</Text>
+            </View>
+            {verified && (
+              <View style={sheetStyles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={12} color={COLORS.primaryDark} />
+                <Text style={sheetStyles.verifiedText}>사용 인증</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
+          </Pressable>
+        );
+      })}
     </View>
   </View>
 );
@@ -597,6 +625,20 @@ const sheetStyles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: FONT_WEIGHTS.semibold,
     marginTop: 2,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.secondary,
+  },
+  verifiedText: {
+    fontSize: 10,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.primaryDark,
   },
 
   empty: { alignItems: 'center', paddingVertical: SPACING.xl, gap: SPACING.sm },

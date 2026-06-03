@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../../store/useAppStore';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Button } from '../../components/common/Button';
 import {
   COLORS, SPACING, BORDER_RADIUS, SHADOW,
   FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
@@ -253,13 +254,13 @@ export const OnboardingScreen: React.FC = () => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.nextButton, !canGoNext() && styles.nextButtonDisabled]}
+        <Button
+          title={isLast ? '시작하기' : '다음'}
+          icon="arrow-forward"
+          iconRight
           onPress={handleNext}
-        >
-          <Text style={styles.nextButtonText}>{isLast ? '시작하기' : '다음'}</Text>
-          <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
-        </TouchableOpacity>
+          disabled={!canGoNext()}
+        />
         <TouchableOpacity style={styles.skipTextBtn} onPress={goMain}>
           <Text style={styles.skipText}>건너뛰기</Text>
         </TouchableOpacity>

@@ -22,6 +22,7 @@ import { usePerfume, usePerfumes, useInfiniteReviews } from '../../lib/api/hooks
 import { useAppStore } from '../../store/useAppStore';
 import { Review } from '../../types';
 import { BottleGlyph } from '../../components/common/PerfumeCard';
+import { Button } from '../../components/common/Button';
 import { InfoPopover } from '../../components/common/InfoPopover';
 import { getScentTagInfo, getNoteInfo, ScentInfo } from '../../lib/scentInfo';
 import { haptic } from '../../lib/haptic';
@@ -48,7 +49,11 @@ export const PerfumeDetailScreen: React.FC = () => {
     () => reviewPages?.pages.flatMap((p) => p.data) ?? [],
     [reviewPages],
   );
-  const { toggleWishlist, isWishlisted, addToCollection, isInCollection, incrementReviewCount } = useAppStore();
+  const {
+    toggleWishlist, isWishlisted,
+    addToCollection, removeFromCollection, isInCollection,
+    incrementReviewCount, showToast,
+  } = useAppStore();
 
   // 서버에서 받아온 리뷰 + 이번 세션에 작성한 임시 리뷰를 합쳐 보여줘요.
   // (현재는 createReview RPC를 안 호출하므로 새 리뷰는 메모리에만 존재.)
@@ -139,6 +144,17 @@ export const PerfumeDetailScreen: React.FC = () => {
   const wishlisted = isWishlisted(perfume.id);
   const inCollection = isInCollection(perfume.id);
 
+  // 보유(컬렉션) 토글 — 도감은 '보유'한 향수만 집계한다.
+  const handleToggleOwned = () => {
+    haptic('light');
+    if (inCollection) {
+      removeFromCollection(perfume.id);
+      showToast('보유 향수에서 뺐어요.');
+    } else {
+      addToCollection(perfume); // 내부에서 '컬렉션에 추가됐어요.' 토스트
+    }
+  };
+
   const similar = allPerfumes.filter(
     (p) => p.id !== perfume.id && p.tags.some((t) => perfume.tags.includes(t))
   ).slice(0, 5);
@@ -179,7 +195,7 @@ export const PerfumeDetailScreen: React.FC = () => {
           <Ionicons
             name={wishlisted ? 'heart' : 'heart-outline'}
             size={22}
-            color={wishlisted ? COLORS.accent : COLORS.text}
+            color={wishlisted ? COLORS.accentInk : COLORS.text}
           />
         </TouchableOpacity>
       </View>
@@ -256,6 +272,21 @@ export const PerfumeDetailScreen: React.FC = () => {
               <Text style={styles.metaSub}>({perfume.review_count?.toLocaleString()})</Text>
             </View>
           </View>
+
+          {/* 보유 토글 — '내 향수'로 담으면 향 도감에 등록돼요 */}
+          <Pressable
+            onPress={handleToggleOwned}
+            style={[styles.ownedToggle, inCollection && styles.ownedToggleActive]}
+          >
+            <Ionicons
+              name={inCollection ? 'checkmark-circle' : 'add-circle-outline'}
+              size={18}
+              color={inCollection ? COLORS.primaryDark : COLORS.primaryInk}
+            />
+            <Text style={[styles.ownedToggleText, inCollection && styles.ownedToggleTextActive]}>
+              {inCollection ? '내 향수예요 · 향 도감에 등록됨' : '내 향수로 담기'}
+            </Text>
+          </Pressable>
         </Animated.View>
 
         {/* Tabs — 가장 마지막에 자연스럽게 페이드인 */}
@@ -394,16 +425,15 @@ export const PerfumeDetailScreen: React.FC = () => {
           <Ionicons
             name={wishlisted ? 'heart' : 'heart-outline'}
             size={20}
-            color={wishlisted ? COLORS.accent : COLORS.textSecondary}
+            color={wishlisted ? COLORS.accentInk : COLORS.textSecondary}
           />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.ctaWriteBtn}
+        <Button
+          title="한줄평 쓰기"
           onPress={() => setReviewModal(true)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.ctaWriteBtnText}>한줄평 쓰기</Text>
-        </TouchableOpacity>
+          fullWidth={false}
+          style={styles.ctaWriteBtn}
+        />
       </Animated.View>
 
       {/* Review Modal */}
@@ -467,9 +497,7 @@ export const PerfumeDetailScreen: React.FC = () => {
                     )}
                   </View>
 
-                  <TouchableOpacity style={styles.submitBtn} onPress={submitReview}>
-                    <Text style={styles.submitBtnText}>등록하기</Text>
-                  </TouchableOpacity>
+                  <Button title="등록하기" onPress={submitReview} disabled={!newComment.trim()} />
                 </View>
               </TouchableWithoutFeedback>
             </View>
@@ -627,6 +655,29 @@ const styles = StyleSheet.create({
   metaValue: { fontSize: FONT_SIZES.bodySm, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text },
   metaSub: { fontSize: FONT_SIZES.small, color: COLORS.textLight },
   price: { fontSize: 20, fontWeight: FONT_WEIGHTS.black, color: COLORS.text },
+  ownedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  ownedToggleActive: {
+    borderColor: COLORS.primaryDark,
+    backgroundColor: COLORS.secondary,
+  },
+  ownedToggleText: {
+    fontSize: FONT_SIZES.bodySm,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.primaryInk,
+  },
+  ownedToggleTextActive: { color: COLORS.primaryDark },
   // Tabs
   tabBar: {
     flexDirection: 'row',
@@ -706,17 +757,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaHeartActive: { borderColor: COLORS.accent },
-  ctaWriteBtn: {
-    flex: 1,
-    height: BUTTON_HEIGHT.lg,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primaryDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOW.md,
-  },
-  ctaWriteBtnText: { color: COLORS.white, fontSize: FONT_SIZES.bodyLg, fontWeight: FONT_WEIGHTS.bold },
+  ctaHeartActive: { borderColor: COLORS.accentInk },
+  ctaWriteBtn: { flex: 1 },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'flex-end' },
   modalCard: { backgroundColor: COLORS.white, borderTopLeftRadius: BORDER_RADIUS.xl, borderTopRightRadius: BORDER_RADIUS.xl, padding: SPACING.lg },

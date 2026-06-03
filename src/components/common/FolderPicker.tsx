@@ -9,6 +9,7 @@ import {
 } from '../../constants/theme';
 import { DragSheet } from './DragSheet';
 import { PressableScale } from './PressableScale';
+import { Button } from './Button';
 import { useAppStore, WishlistFolder } from '../../store/useAppStore';
 import { haptic } from '../../lib/haptic';
 
@@ -143,9 +144,7 @@ export const FolderPicker: React.FC<FolderPickerProps> = ({ visible, onClose, pe
           })}
         </ScrollView>
 
-        <PressableScale style={styles.doneBtn} onPress={onClose} haptic="light">
-          <Text style={styles.doneText}>완료</Text>
-        </PressableScale>
+        <Button title="완료" onPress={onClose} style={styles.doneBtn} />
       </View>
     </DragSheet>
   );
@@ -260,11 +259,6 @@ const styles = StyleSheet.create({
 
   doneBtn: {
     marginTop: SPACING.md,
-    height: BUTTON_HEIGHT.lg,
-    backgroundColor: COLORS.primaryDark,
-    borderRadius: BORDER_RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   doneText: { color: COLORS.white, fontSize: FONT_SIZES.bodyLg, fontWeight: FONT_WEIGHTS.bold },
 });

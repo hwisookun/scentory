@@ -43,12 +43,12 @@ Single Zustand store at `src/store/useAppStore.ts` holds all app state:
 - User data: `wishlist`, `collections`, `brandSubscriptions`
 - UI: `toast` (auto-hides after 2200 ms), `notificationSettings`
 
-State is in-memory only — no persistence layer yet.
+State is persisted to `AsyncStorage` via Zustand's `persist` middleware (store name `matda-app-store`); `toast` and action functions are excluded from the persisted slice.
 
 ### Design system
 
 All design tokens live in `src/constants/theme.ts`:
-- `COLORS` — brand palette (`primary: #5E9E82`), semantic colors, social login colors
+- `COLORS` — brand palette (`primary: #A8D5BA` pastel green, `primaryDark: #6FB88F`), semantic colors, social login colors
 - `SPACING` — xs/sm/md/lg/xl/xxl (4–48 px scale)
 - `BORDER_RADIUS` / `SHADOW` — sm/md/lg variants
 - `SCENT_COLORS` / `SCENT_TEXT_COLORS` — per-tag background and text colors for the 18 scent tags

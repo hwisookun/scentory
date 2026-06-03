@@ -6,6 +6,7 @@ export const COLORS = {
   primaryDark: '#6FB88F',   // Interactive: buttons, chips, active states (white text readable)
   primaryInk: '#3E7E62',    // Small labels, icons, text on white
   primaryDeep: '#1F3A2A',   // Deepest logotype ink
+  primaryBtnText: '#1F4A35', // 텍스트 on 파스텔 그라디언트 버튼 (claude_design 기준)
   secondary: '#F0F8F3',     // Barely-there mint tint — soft fills
   accent: '#FFB3A1',        // Pastel coral — wishlist heart idle
   accentInk: '#FF8A70',     // Saturated coral — filled heart state

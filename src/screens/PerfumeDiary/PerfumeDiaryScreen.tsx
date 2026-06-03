@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView, TextInput, Image, Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +13,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { usePerfumes } from '../../lib/api/hooks';
 import type { Perfume, DiaryEntry } from '../../types';
 import { DragSheet } from '../../components/common/DragSheet';
+import { Button } from '../../components/common/Button';
 import { haptic } from '../../lib/haptic';
 import { addOrUpdateDiaryEvent, deleteDiaryEvent } from '../../lib/calendar';
 
@@ -381,10 +381,13 @@ const ViewMode: React.FC<{
         <Ionicons name="trash-outline" size={16} color={COLORS.error} />
         <Text style={[sheetStyles.btnGhostText, { color: COLORS.error }]}>지우기</Text>
       </Pressable>
-      <Pressable style={[sheetStyles.btn, sheetStyles.btnPrimary]} onPress={onEdit}>
-        <Ionicons name="create-outline" size={16} color={COLORS.white} />
-        <Text style={sheetStyles.btnPrimaryText}>수정하기</Text>
-      </Pressable>
+      <Button
+        title="수정하기"
+        icon="create-outline"
+        fullWidth={false}
+        style={sheetStyles.btnFlex}
+        onPress={onEdit}
+      />
     </View>
   </View>
 );
@@ -438,20 +441,15 @@ const EditMode: React.FC<{
       <Pressable style={[sheetStyles.btn, sheetStyles.btnGhost]} onPress={onCancel} disabled={saving}>
         <Text style={sheetStyles.btnGhostText}>취소</Text>
       </Pressable>
-      <Pressable
-        style={[sheetStyles.btn, sheetStyles.btnPrimary, (!perfume || saving) && sheetStyles.btnDisabled]}
+      <Button
+        title="저장"
+        icon="checkmark"
+        fullWidth={false}
+        style={sheetStyles.btnFlex}
         onPress={onSave}
-        disabled={!perfume || saving}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color={COLORS.white} />
-        ) : (
-          <>
-            <Ionicons name="checkmark" size={16} color={COLORS.white} />
-            <Text style={sheetStyles.btnPrimaryText}>저장</Text>
-          </>
-        )}
-      </Pressable>
+        disabled={!perfume}
+        loading={saving}
+      />
     </View>
   </View>
 );
@@ -671,6 +669,7 @@ const sheetStyles = StyleSheet.create({
   notePlaceholder: { fontSize: FONT_SIZES.body, color: COLORS.textLight, fontStyle: 'italic' },
 
   btnRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
+  btnFlex: { flex: 1 },
   btn: {
     flex: 1,
     height: BUTTON_HEIGHT.lg,

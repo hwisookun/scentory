@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { DragSheet } from './DragSheet';
 import { PressableScale } from './PressableScale';
+import { Button } from './Button';
 import {
   COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS,
   BUTTON_HEIGHT, TOUCH_TARGET_MIN,
@@ -131,14 +132,14 @@ export const NicknameEditSheet: React.FC<Props> = ({
           <PressableScale style={[styles.btn, styles.btnGhost]} onPress={onClose} haptic="light">
             <Text style={styles.btnGhostText}>취소</Text>
           </PressableScale>
-          <PressableScale
-            style={[styles.btn, styles.btnPrimary, !canSubmit && styles.btnDisabled]}
+          <Button
+            title="저장"
+            fullWidth={false}
+            style={styles.btnFlex}
             onPress={handleSave}
             haptic="medium"
             disabled={!canSubmit}
-          >
-            <Text style={styles.btnPrimaryText}>저장</Text>
-          </PressableScale>
+          />
         </View>
       </View>
     </DragSheet>
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
   ruleText: { fontSize: FONT_SIZES.bodySm, color: COLORS.textSecondary, lineHeight: LINE_HEIGHTS.bodySm * 1.4 },
 
   btnRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.xs },
+  btnFlex: { flex: 1 },
   btn: {
     flex: 1,
     height: BUTTON_HEIGHT.lg,
