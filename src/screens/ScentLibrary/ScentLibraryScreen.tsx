@@ -11,16 +11,31 @@ import {
   BORDER_RADIUS, SHADOW, SCENT_COLORS, SCENT_TEXT_COLORS,
 } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
-import { Perfume, ScentTag } from '../../types';
+import { Perfume, ScentTag, CollectionStatus } from '../../types';
 import { getScentTagInfo } from '../../lib/scentInfo';
 import { DragSheet } from '../../components/common/DragSheet';
 import { PressableScale } from '../../components/common/PressableScale';
 import { Button } from '../../components/common/Button';
 import { haptic } from '../../lib/haptic';
 
-type Tab = 'all' | 'wish' | 'coll';
+// 만난 향(시향+) / 내 향(보유) / 마음에 둠(찜)
+type Tab = 'met' | 'owned' | 'wish';
 
 const TAGS = Object.keys(SCENT_COLORS) as ScentTag[];
+
+// 향과 나의 친밀도 잎 메터 (0~3): 시향 1 · 보유 2 · 함께함(기록) 3
+const LeafMeter: React.FC<{ level: number }> = ({ level }) => (
+  <View style={{ flexDirection: 'row', gap: 1 }}>
+    {[1, 2, 3].map((n) => (
+      <Ionicons
+        key={n}
+        name="leaf"
+        size={12}
+        color={n <= level ? COLORS.primaryDark : COLORS.gray300}
+      />
+    ))}
+  </View>
+);
 
 export const ScentLibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -29,14 +44,27 @@ export const ScentLibraryScreen: React.FC = () => {
   const diary = useAppStore((s) => s.perfumeDiary);
   const reviewedPerfumeIds = useAppStore((s) => s.reviewedPerfumeIds);
 
-  // 도감은 '보유(컬렉션)'를 기본으로 본다.
-  const [tab, setTab] = useState<Tab>('coll');
+  // 만난 향(시향+)을 기본으로 본다.
+  const [tab, setTab] = useState<Tab>('met');
   const [openTag, setOpenTag] = useState<ScentTag | null>(null);
 
   const wishPerfumes = useMemo(() => wishlist.map((w) => w.perfume), [wishlist]);
+  // 컬렉션 = 시향 이상 '만난 향'. (기존 status 없는 항목은 보유로 간주)
   const collPerfumes = useMemo(() => collections.map((c) => c.perfume), [collections]);
+  const ownedPerfumes = useMemo(
+    () => collections.filter((c) => (c.status ?? 'full') !== 'tried').map((c) => c.perfume),
+    [collections],
+  );
+  const statusById = useMemo(() => {
+    const m = new Map<string, CollectionStatus>();
+    collections.forEach((c) => m.set(c.perfume_id, c.status ?? 'full'));
+    return m;
+  }, [collections]);
 
-  // 사용 인증 — 다이어리 기록(착용) 또는 한줄평 작성한 향수를 '인증'으로 친다.
+  // 찜만 한(컬렉션엔 없는) 향수 — '마음에 둠'
+  const wishSet = useMemo(() => new Set(wishPerfumes.map((p) => p.id)), [wishPerfumes]);
+
+  // 함께한 향 — 다이어리 기록(착용) 또는 한줄평 작성
   const verifiedIds = useMemo(
     () => new Set<string>([
       ...Object.values(diary).map((e) => e.perfumeId),
@@ -44,19 +72,18 @@ export const ScentLibraryScreen: React.FC = () => {
     ]),
     [diary, reviewedPerfumeIds],
   );
-  const verifiedCount = useMemo(
+  const ownedCount = ownedPerfumes.length;
+  const livedCount = useMemo(
     () => collPerfumes.filter((p) => verifiedIds.has(p.id)).length,
     [collPerfumes, verifiedIds],
   );
 
-  // 현재 탭에 따른 향수 풀 (중복 제거)
+  // 현재 탭에 따른 향수 풀
   const pool = useMemo<Perfume[]>(() => {
     if (tab === 'wish') return wishPerfumes;
-    if (tab === 'coll') return collPerfumes;
-    const map = new Map<string, Perfume>();
-    [...wishPerfumes, ...collPerfumes].forEach((p) => map.set(p.id, p));
-    return Array.from(map.values());
-  }, [tab, wishPerfumes, collPerfumes]);
+    if (tab === 'owned') return ownedPerfumes;
+    return collPerfumes; // 'met' — 만난 향(시향+)
+  }, [tab, wishPerfumes, ownedPerfumes, collPerfumes]);
 
   // 각 향 계열별 매칭 향수 수
   const countsByTag = useMemo(() => {
@@ -104,18 +131,18 @@ export const ScentLibraryScreen: React.FC = () => {
             <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
           </View>
           <Text style={styles.progressHint}>
-            {verifiedCount > 0
-              ? `내 향수로 담은 향을 향 계열별로 모았어요. 그중 ${verifiedCount}개는 다이어리·한줄평으로 ‘사용 인증’됐어요.`
-              : '‘내 향수로 담기’로 보유한 향을 모아요. 다이어리에 기록하거나 한줄평을 남기면 ‘사용 인증’이 붙어요.'}
+            {ownedCount > 0 || livedCount > 0
+              ? `내 향 ${ownedCount} · 함께한 향 ${livedCount}. 시향한 향까지 향 계열별로 모아 둘게요.`
+              : '시향만 해도 향 도감에 남아요. 한 칸씩 천천히 나만의 향 지도를 채워 봐요.'}
           </Text>
         </Animated.View>
 
-        {/* 탭 — 보유(도감) 우선 */}
+        {/* 탭 — 만난 향(시향+) 우선 */}
         <View style={styles.tabRow}>
           {([
-            { v: 'coll', label: '보유' },
-            { v: 'wish', label: '위시(찜)' },
-            { v: 'all', label: '전체' },
+            { v: 'met', label: '만난 향' },
+            { v: 'owned', label: '내 향' },
+            { v: 'wish', label: '마음에 둠' },
           ] as { v: Tab; label: string }[]).map((t) => (
             <PressableScale
               key={t.v}
@@ -182,10 +209,10 @@ export const ScentLibraryScreen: React.FC = () => {
 
       <FamilyDetailSheet
         tag={openTag}
-        tab={tab}
         onClose={() => setOpenTag(null)}
         wishPerfumes={wishPerfumes}
         collPerfumes={collPerfumes}
+        statusById={statusById}
         verifiedIds={verifiedIds}
       />
     </SafeAreaView>
@@ -195,30 +222,47 @@ export const ScentLibraryScreen: React.FC = () => {
 // ─────────────────────────────────────────────────────────────
 // 향 계열 상세 시트
 // ─────────────────────────────────────────────────────────────
+// 향과 나의 친밀도 (0~3): 시향 1 · 보유 2 · 함께함(기록) 3
+function leafLevelOf(
+  p: Perfume,
+  statusById: Map<string, CollectionStatus>,
+  verifiedIds: Set<string>,
+): number {
+  const st = statusById.get(p.id);
+  let n = st === 'tried' ? 1 : st ? 2 : 0;
+  if (n >= 1 && verifiedIds.has(p.id)) n = 3;
+  return n;
+}
+
 const FamilyDetailSheet: React.FC<{
   tag: ScentTag | null;
-  tab: Tab;
   onClose: () => void;
   wishPerfumes: Perfume[];
   collPerfumes: Perfume[];
+  statusById: Map<string, CollectionStatus>;
   verifiedIds: Set<string>;
-}> = ({ tag, tab, onClose, wishPerfumes, collPerfumes, verifiedIds }) => {
+}> = ({ tag, onClose, wishPerfumes, collPerfumes, statusById, verifiedIds }) => {
   const navigation = useNavigation<any>();
   const info = tag ? getScentTagInfo(tag) : null;
 
-  // 그리드 탭과 일관성 — 'coll' 탭에서 들어왔으면 위시 섹션은 숨김.
-  const showWish = tab !== 'coll';
-  const showColl = tab !== 'wish';
-
-  const wishMatches = useMemo(
-    () => (tag && showWish ? wishPerfumes.filter((p) => p.tags.includes(tag)) : []),
-    [tag, showWish, wishPerfumes],
-  );
+  // 보유(미니/풀) · 시향 · 마음에 둠(찜) 세 갈래로 보여준다.
   const collMatches = useMemo(
-    () => (tag && showColl ? collPerfumes.filter((p) => p.tags.includes(tag)) : []),
-    [tag, showColl, collPerfumes],
+    () => (tag ? collPerfumes.filter((p) => p.tags.includes(tag)) : []),
+    [tag, collPerfumes],
   );
-  const total = wishMatches.length + collMatches.length;
+  const ownedMatches = useMemo(
+    () => collMatches.filter((p) => statusById.get(p.id) !== 'tried'),
+    [collMatches, statusById],
+  );
+  const triedMatches = useMemo(
+    () => collMatches.filter((p) => statusById.get(p.id) === 'tried'),
+    [collMatches, statusById],
+  );
+  const wishMatches = useMemo(
+    () => (tag ? wishPerfumes.filter((p) => p.tags.includes(tag) && !statusById.has(p.id)) : []),
+    [tag, wishPerfumes, statusById],
+  );
+  const total = collMatches.length + wishMatches.length;
 
   const openPerfume = (perfumeId: string) => {
     onClose();
@@ -267,10 +311,10 @@ const FamilyDetailSheet: React.FC<{
           {/* 내 향수 */}
           {total === 0 ? (
             <View style={sheetStyles.empty}>
-              <Ionicons name="search-outline" size={36} color={COLORS.gray300} />
-              <Text style={sheetStyles.emptyTitle}>이 계열의 향수가 아직 없어요</Text>
+              <Ionicons name="leaf-outline" size={36} color={COLORS.gray300} />
+              <Text style={sheetStyles.emptyTitle}>아직 비어있는 계열이에요</Text>
               <Text style={sheetStyles.emptySub}>
-                찾아보기에서 {tag} 향수를 만나 보세요.
+                {tag} 향을 시향하거나 담으면{'\n'}여기에 한 칸씩 채워져요.
               </Text>
               <Button
                 title={`${tag} 향수 둘러보기`}
@@ -281,21 +325,36 @@ const FamilyDetailSheet: React.FC<{
             </View>
           ) : (
             <View style={{ gap: SPACING.md }}>
-              {collMatches.length > 0 && (
+              {ownedMatches.length > 0 && (
                 <PerfumeGroup
-                  title="보유"
+                  title="내 향"
                   icon="albums"
-                  perfumes={collMatches}
+                  perfumes={ownedMatches}
                   onPress={openPerfume}
+                  kind="coll"
+                  statusById={statusById}
+                  verifiedIds={verifiedIds}
+                />
+              )}
+              {triedMatches.length > 0 && (
+                <PerfumeGroup
+                  title="시향"
+                  icon="water-outline"
+                  perfumes={triedMatches}
+                  onPress={openPerfume}
+                  kind="coll"
+                  statusById={statusById}
                   verifiedIds={verifiedIds}
                 />
               )}
               {wishMatches.length > 0 && (
                 <PerfumeGroup
-                  title="위시(찜)"
-                  icon="heart"
+                  title="마음에 둠"
+                  icon="heart-outline"
                   perfumes={wishMatches}
                   onPress={openPerfume}
+                  kind="wish"
+                  statusById={statusById}
                   verifiedIds={verifiedIds}
                 />
               )}
@@ -326,8 +385,10 @@ const PerfumeGroup: React.FC<{
   icon: keyof typeof Ionicons.glyphMap;
   perfumes: Perfume[];
   onPress: (id: string) => void;
+  kind: 'coll' | 'wish';
+  statusById: Map<string, CollectionStatus>;
   verifiedIds: Set<string>;
-}> = ({ title, icon, perfumes, onPress, verifiedIds }) => (
+}> = ({ title, icon, perfumes, onPress, kind, statusById, verifiedIds }) => (
   <View>
     <View style={sheetStyles.groupHeader}>
       <Ionicons name={icon} size={14} color={COLORS.primaryInk} />
@@ -336,7 +397,7 @@ const PerfumeGroup: React.FC<{
     </View>
     <View style={{ gap: 6 }}>
       {perfumes.map((p) => {
-        const verified = verifiedIds.has(p.id);
+        const level = leafLevelOf(p, statusById, verifiedIds);
         return (
           <Pressable
             key={p.id}
@@ -348,11 +409,15 @@ const PerfumeGroup: React.FC<{
             <View style={{ flex: 1 }}>
               <Text style={sheetStyles.perfumeBrand} numberOfLines={1}>{p.brand.name}</Text>
               <Text style={sheetStyles.perfumeName} numberOfLines={1}>{p.name}</Text>
+              {kind === 'coll' && level >= 3 && (
+                <Text style={sheetStyles.livedText}>함께한 향</Text>
+              )}
             </View>
-            {verified && (
-              <View style={sheetStyles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={12} color={COLORS.primaryDark} />
-                <Text style={sheetStyles.verifiedText}>사용 인증</Text>
+            {kind === 'coll' ? (
+              <LeafMeter level={level} />
+            ) : (
+              <View style={sheetStyles.wishPill}>
+                <Ionicons name="heart" size={11} color={COLORS.accentInk} />
               </View>
             )}
             <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
@@ -629,19 +694,19 @@ const sheetStyles = StyleSheet.create({
     fontWeight: FONT_WEIGHTS.semibold,
     marginTop: 2,
   },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.secondary,
-  },
-  verifiedText: {
+  livedText: {
     fontSize: 10,
     fontWeight: FONT_WEIGHTS.bold,
     color: COLORS.primaryDark,
+    marginTop: 2,
+  },
+  wishPill: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
   },
 
   empty: { alignItems: 'center', paddingVertical: SPACING.xl, gap: SPACING.sm },

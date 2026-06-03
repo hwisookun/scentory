@@ -20,7 +20,7 @@ import {
 } from '../../constants/theme';
 import { usePerfume, usePerfumes, useInfiniteReviews } from '../../lib/api/hooks';
 import { useAppStore } from '../../store/useAppStore';
-import { Review } from '../../types';
+import { Review, CollectionStatus } from '../../types';
 import { BottleGlyph } from '../../components/common/PerfumeCard';
 import { Button } from '../../components/common/Button';
 import { InfoPopover } from '../../components/common/InfoPopover';
@@ -31,6 +31,14 @@ import { ReviewImages } from '../../components/common/ReviewImages';
 type Tab = 'note' | 'review' | 'info';
 
 const SCREEN_W = Dimensions.get('window').width;
+
+// 향과 나의 관계(보유 단계)
+const STATUS_META: Record<CollectionStatus, { label: string; icon: keyof typeof Ionicons.glyphMap; toast: string }> = {
+  tried: { label: '시향', icon: 'water-outline', toast: '시향한 향으로 담았어요.' },
+  mini: { label: '미니·디캔트', icon: 'flask-outline', toast: '미니·디캔트로 담았어요.' },
+  full: { label: '보유', icon: 'cube-outline', toast: '내 향수로 담았어요.' },
+};
+const STATUS_ORDER: CollectionStatus[] = ['tried', 'mini', 'full'];
 
 export const PerfumeDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -51,7 +59,7 @@ export const PerfumeDetailScreen: React.FC = () => {
   );
   const {
     toggleWishlist, isWishlisted,
-    addToCollection, removeFromCollection, isInCollection,
+    addToCollection, setCollectionStatus, removeFromCollection, getCollectionStatus,
     recordReview, showToast,
   } = useAppStore();
 
@@ -142,16 +150,20 @@ export const PerfumeDetailScreen: React.FC = () => {
   if (!perfume) return null;
 
   const wishlisted = isWishlisted(perfume.id);
-  const inCollection = isInCollection(perfume.id);
+  const collStatus = getCollectionStatus(perfume.id);
 
-  // 보유(컬렉션) 토글 — 도감은 '보유'한 향수만 집계한다.
-  const handleToggleOwned = () => {
-    haptic('light');
-    if (inCollection) {
+  // 향과 나의 관계(보유 단계) 선택 — 도감은 '시향 이상'을 만난 향으로 친다.
+  const handleStatus = (v: CollectionStatus) => {
+    haptic('selection');
+    if (collStatus === v) {
       removeFromCollection(perfume.id);
-      showToast('보유 향수에서 뺐어요.');
+      showToast('향 도감에서 내려놓았어요.');
+    } else if (collStatus) {
+      setCollectionStatus(perfume.id, v);
+      showToast(STATUS_META[v].toast);
     } else {
-      addToCollection(perfume); // 내부에서 '컬렉션에 추가됐어요.' 토스트
+      addToCollection(perfume, v);
+      showToast(STATUS_META[v].toast);
     }
   };
 
@@ -273,20 +285,36 @@ export const PerfumeDetailScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* 보유 토글 — '내 향수'로 담으면 향 도감에 등록돼요 */}
-          <Pressable
-            onPress={handleToggleOwned}
-            style={[styles.ownedToggle, inCollection && styles.ownedToggleActive]}
-          >
-            <Ionicons
-              name={inCollection ? 'checkmark-circle' : 'add-circle-outline'}
-              size={18}
-              color={inCollection ? COLORS.primaryDark : COLORS.primaryInk}
-            />
-            <Text style={[styles.ownedToggleText, inCollection && styles.ownedToggleTextActive]}>
-              {inCollection ? '내 향수예요 · 향 도감에 등록됨' : '내 향수로 담기'}
+          {/* 향과 나의 관계 — 시향만 해도 향 도감에 남아요 */}
+          <View style={styles.relBlock}>
+            <Text style={styles.relLabel}>이 향, 나와의 관계</Text>
+            <View style={styles.relChips}>
+              {STATUS_ORDER.map((v) => {
+                const active = collStatus === v;
+                return (
+                  <Pressable
+                    key={v}
+                    onPress={() => handleStatus(v)}
+                    style={[styles.relChip, active && styles.relChipActive]}
+                  >
+                    <Ionicons
+                      name={STATUS_META[v].icon}
+                      size={15}
+                      color={active ? COLORS.white : COLORS.primaryInk}
+                    />
+                    <Text style={[styles.relChipText, active && styles.relChipTextActive]}>
+                      {STATUS_META[v].label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.relHint}>
+              {collStatus
+                ? '향 도감에 담겼어요. 같은 단계를 다시 누르면 내려놓아요.'
+                : '시향만 해도 향 도감에 남길 수 있어요.'}
             </Text>
-          </Pressable>
+          </View>
         </Animated.View>
 
         {/* Tabs — 가장 마지막에 자연스럽게 페이드인 */}
@@ -655,29 +683,41 @@ const styles = StyleSheet.create({
   metaValue: { fontSize: FONT_SIZES.bodySm, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text },
   metaSub: { fontSize: FONT_SIZES.small, color: COLORS.textLight },
   price: { fontSize: 20, fontWeight: FONT_WEIGHTS.black, color: COLORS.text },
-  ownedToggle: {
+  relBlock: { marginTop: SPACING.xs, marginBottom: SPACING.sm },
+  relLabel: {
+    fontSize: FONT_SIZES.bodySm,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  relChips: { flexDirection: 'row', gap: SPACING.sm - 2 },
+  relChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.sm,
-    paddingVertical: 11,
+    gap: 4,
+    paddingVertical: 10,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
   },
-  ownedToggleActive: {
+  relChipActive: {
     borderColor: COLORS.primaryDark,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.primaryDark,
   },
-  ownedToggleText: {
-    fontSize: FONT_SIZES.bodySm,
+  relChipText: {
+    fontSize: FONT_SIZES.small,
     fontWeight: FONT_WEIGHTS.bold,
     color: COLORS.primaryInk,
   },
-  ownedToggleTextActive: { color: COLORS.primaryDark },
+  relChipTextActive: { color: COLORS.white },
+  relHint: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textLight,
+    marginTop: SPACING.sm,
+  },
   // Tabs
   tabBar: {
     flexDirection: 'row',

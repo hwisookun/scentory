@@ -72,11 +72,16 @@ export interface WishlistItem {
   added_at: string;
 }
 
+// 향과 나의 관계(보유 단계) — 시향 < 미니/디캔트 < 풀보틀 보유
+export const COLLECTION_STATUSES = ['tried', 'mini', 'full'] as const;
+export type CollectionStatus = (typeof COLLECTION_STATUSES)[number];
+
 export interface CollectionItem {
   id: string;
   user_id: string;
   perfume_id: string;
   perfume: Perfume;
+  status: CollectionStatus;
   memo?: string;
   rating?: number;
 }

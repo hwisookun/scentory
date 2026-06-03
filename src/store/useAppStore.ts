@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Perfume, UserProfile, WishlistItem, CollectionItem,
   BrandSubscription, ScentTag, Purpose, PriceRange, DiaryEntry,
+  CollectionStatus,
 } from '../types';
 
 interface OnboardingState {
@@ -85,10 +86,12 @@ interface AppState {
   toggleWishlist: (perfume: Perfume) => void;
   isWishlisted: (perfumeId: string) => boolean;
 
-  // Collection
-  addToCollection: (perfume: Perfume, memo?: string, rating?: number) => void;
+  // Collection — 보유 단계(시향/미니/보유)를 status로 기록
+  addToCollection: (perfume: Perfume, status?: CollectionStatus) => void;
+  setCollectionStatus: (perfumeId: string, status: CollectionStatus) => void;
   removeFromCollection: (perfumeId: string) => void;
   isInCollection: (perfumeId: string) => boolean;
+  getCollectionStatus: (perfumeId: string) => CollectionStatus | null;
 
   // Brand subscriptions
   toggleBrandSubscription: (brandId: string) => void;
@@ -280,20 +283,32 @@ export const useAppStore = create<AppState>()(
 
   isWishlisted: (perfumeId) => get().wishlist.some((w) => w.perfume_id === perfumeId),
 
-  addToCollection: (perfume, memo, rating) =>
+  addToCollection: (perfume, status = 'full') =>
     set((s) => {
-      if (s.collections.some((c) => c.perfume_id === perfume.id)) return s;
-      get().showToast('컬렉션에 추가됐어요.');
+      // 이미 있으면 상태만 갱신
+      if (s.collections.some((c) => c.perfume_id === perfume.id)) {
+        return {
+          collections: s.collections.map((c) =>
+            c.perfume_id === perfume.id ? { ...c, status } : c,
+          ),
+        };
+      }
       const newItem: CollectionItem = {
         id: Date.now().toString(),
         user_id: s.user?.id ?? 'guest',
         perfume_id: perfume.id,
         perfume,
-        memo,
-        rating,
+        status,
       };
       return { collections: [...s.collections, newItem] };
     }),
+
+  setCollectionStatus: (perfumeId, status) =>
+    set((s) => ({
+      collections: s.collections.map((c) =>
+        c.perfume_id === perfumeId ? { ...c, status } : c,
+      ),
+    })),
 
   removeFromCollection: (perfumeId) =>
     set((s) => ({
@@ -301,6 +316,12 @@ export const useAppStore = create<AppState>()(
     })),
 
   isInCollection: (perfumeId) => get().collections.some((c) => c.perfume_id === perfumeId),
+
+  // 기존(status 없는) 데이터는 '보유(full)'로 간주 — 마이그레이션 불필요
+  getCollectionStatus: (perfumeId) => {
+    const item = get().collections.find((c) => c.perfume_id === perfumeId);
+    return item ? (item.status ?? 'full') : null;
+  },
 
   toggleBrandSubscription: (brandId) =>
     set((s) => {
