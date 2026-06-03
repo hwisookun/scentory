@@ -52,7 +52,7 @@ export const PerfumeDetailScreen: React.FC = () => {
   const {
     toggleWishlist, isWishlisted,
     addToCollection, removeFromCollection, isInCollection,
-    incrementReviewCount, showToast,
+    recordReview, showToast,
   } = useAppStore();
 
   // 서버에서 받아온 리뷰 + 이번 세션에 작성한 임시 리뷰를 합쳐 보여줘요.
@@ -172,7 +172,7 @@ export const PerfumeDetailScreen: React.FC = () => {
       images: newImages.length > 0 ? [...newImages] : undefined,
     };
     setPendingReviews((prev) => [r, ...prev]);
-    incrementReviewCount();
+    recordReview(perfumeId); // reviewCount 증가 + 사용 인증 신호로 기록
     setNewComment('');
     setNewRating(5);
     setNewImages([]);

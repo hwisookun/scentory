@@ -56,6 +56,7 @@ interface AppState {
   collections: CollectionItem[];
   brandSubscriptions: BrandSubscription[];
   reviewCount: number;
+  reviewedPerfumeIds: string[]; // 한줄평을 남긴 향수 id (사용 인증 신호)
 
   perfumeDiary: Record<string, DiaryEntry>;
   gacha: GachaState;
@@ -95,6 +96,7 @@ interface AppState {
 
   // Review
   incrementReviewCount: () => void;
+  recordReview: (perfumeId: string) => void;
 
   // Toast
   showToast: (message: string) => void;
@@ -146,6 +148,7 @@ export const useAppStore = create<AppState>()(
   collections: [],
   brandSubscriptions: [],
   reviewCount: 0,
+  reviewedPerfumeIds: [],
 
   perfumeDiary: {},
   gacha: { lastPullDate: null, history: [] },
@@ -202,6 +205,7 @@ export const useAppStore = create<AppState>()(
       wishlist: [],
       wishlistFolders: [],
       collections: [],
+      reviewedPerfumeIds: [],
       perfumeDiary: {},
       gacha: { lastPullDate: null, history: [] },
       onboarding: {
@@ -317,6 +321,14 @@ export const useAppStore = create<AppState>()(
     })),
 
   incrementReviewCount: () => set((s) => ({ reviewCount: s.reviewCount + 1 })),
+
+  recordReview: (perfumeId) =>
+    set((s) => ({
+      reviewCount: s.reviewCount + 1,
+      reviewedPerfumeIds: s.reviewedPerfumeIds.includes(perfumeId)
+        ? s.reviewedPerfumeIds
+        : [...s.reviewedPerfumeIds, perfumeId],
+    })),
 
   showToast: (message) => {
     set({ toast: { visible: true, message } });
@@ -435,6 +447,7 @@ export const useAppStore = create<AppState>()(
         collections: state.collections,
         brandSubscriptions: state.brandSubscriptions,
         reviewCount: state.reviewCount,
+        reviewedPerfumeIds: state.reviewedPerfumeIds,
         notificationSettings: state.notificationSettings,
         perfumeDiary: state.perfumeDiary,
         gacha: state.gacha,

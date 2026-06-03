@@ -27,6 +27,7 @@ export const ScentLibraryScreen: React.FC = () => {
   const wishlist = useAppStore((s) => s.wishlist);
   const collections = useAppStore((s) => s.collections);
   const diary = useAppStore((s) => s.perfumeDiary);
+  const reviewedPerfumeIds = useAppStore((s) => s.reviewedPerfumeIds);
 
   // 도감은 '보유(컬렉션)'를 기본으로 본다.
   const [tab, setTab] = useState<Tab>('coll');
@@ -35,11 +36,13 @@ export const ScentLibraryScreen: React.FC = () => {
   const wishPerfumes = useMemo(() => wishlist.map((w) => w.perfume), [wishlist]);
   const collPerfumes = useMemo(() => collections.map((c) => c.perfume), [collections]);
 
-  // 사용 인증 — 다이어리에 실제로 기록(착용)한 향수만 '인증'으로 친다.
-  // (리뷰는 보유·사용과 무관하게 쓸 수 있어 신호로 쓰지 않음.)
+  // 사용 인증 — 다이어리 기록(착용) 또는 한줄평 작성한 향수를 '인증'으로 친다.
   const verifiedIds = useMemo(
-    () => new Set(Object.values(diary).map((e) => e.perfumeId)),
-    [diary],
+    () => new Set<string>([
+      ...Object.values(diary).map((e) => e.perfumeId),
+      ...reviewedPerfumeIds,
+    ]),
+    [diary, reviewedPerfumeIds],
   );
   const verifiedCount = useMemo(
     () => collPerfumes.filter((p) => verifiedIds.has(p.id)).length,
@@ -102,8 +105,8 @@ export const ScentLibraryScreen: React.FC = () => {
           </View>
           <Text style={styles.progressHint}>
             {verifiedCount > 0
-              ? `내 향수로 담은 향을 향 계열별로 모았어요. 그중 ${verifiedCount}개는 다이어리 기록으로 ‘사용 인증’됐어요.`
-              : '‘내 향수로 담기’로 보유한 향을 모아요. 다이어리에 기록하면 ‘사용 인증’이 붙어요.'}
+              ? `내 향수로 담은 향을 향 계열별로 모았어요. 그중 ${verifiedCount}개는 다이어리·한줄평으로 ‘사용 인증’됐어요.`
+              : '‘내 향수로 담기’로 보유한 향을 모아요. 다이어리에 기록하거나 한줄평을 남기면 ‘사용 인증’이 붙어요.'}
           </Text>
         </Animated.View>
 
