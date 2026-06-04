@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSequence, withSpring, withTiming, withDelay,
-  interpolate, runOnJS,
+  interpolate,
 } from 'react-native-reanimated';
 import { pickImages } from '../../lib/imagePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -369,19 +369,23 @@ const FeedPost: React.FC<{
     transform: [{ scale: burst.value }],
   }));
 
+  const canOpenPerfume = !!item.perfume;
+  // 콜백을 JS 스레드에서 실행 — popBurst/haptic 등 일반 함수를 바로 호출 가능
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .maxDuration(260)
+    .runOnJS(true)
     .onEnd(() => {
-      runOnJS(onLikeOn)();
-      runOnJS(haptic)('light');
+      onLikeOn();
+      haptic('light');
       popBurst();
     });
   const singleTap = Gesture.Tap()
     .numberOfTaps(1)
+    .runOnJS(true)
     .onEnd(() => {
-      if (hasImages) runOnJS(setViewer)(true);
-      else if (item.perfume) runOnJS(onOpenPerfume)();
+      if (hasImages) setViewer(true);
+      else if (canOpenPerfume) onOpenPerfume();
     });
   const mediaGesture = Gesture.Exclusive(doubleTap, singleTap);
 
