@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import {
   COLORS, SPACING, BORDER_RADIUS, SHADOW,
-  FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, TOUCH_TARGET_MIN, BUTTON_HEIGHT,
+  FONT_SIZES, FONT_WEIGHTS, LINE_HEIGHTS, BUTTON_HEIGHT,
 } from '../../constants/theme';
 import { useInfiniteAllReviews, usePerfumes } from '../../lib/api/hooks';
 import { Review, BoardCategory, BOARD_CATEGORIES, Perfume } from '../../types';
@@ -60,11 +60,35 @@ function categoryOf(r: Review): BoardCategory {
   return BOARD_CATEGORIES[h % BOARD_CATEGORIES.length];
 }
 
-// like/comment 수도 id 해시로 안정화 (실데이터 연결 전 placeholder)
-function pseudoCounts(id: string): { likes: number; comments: number } {
+// like 수는 id 해시로 안정화 (실데이터 연결 전 placeholder)
+function pseudoLikes(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 131 + id.charCodeAt(i)) >>> 0;
-  return { likes: h % 80, comments: (h >> 8) % 24 };
+  return h % 80;
+}
+
+// 댓글 — 실데이터 전까지 id 해시로 0~5개 목업 생성(렌더마다 동일)
+export type FeedComment = { id: string; nickname: string; text: string; mine?: boolean };
+const COMMENT_NICKS = ['scent_j', '민트초코', '향덕후_미소', '우디러버', '코코', '블랑', '오후세시'];
+const COMMENT_TEXTS = [
+  '저도 이 향 좋아해요!', '정보 감사해요 🌿', '어떤 계절에 잘 어울려요?',
+  '지속력은 어떤가요?', '데이트에 딱일 것 같아요', '담아둘게요',
+  '시향 꼭 해봐야겠어요', '설명이 너무 와닿네요',
+];
+function mockCommentsFor(id: string): FeedComment[] {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 131 + id.charCodeAt(i)) >>> 0;
+  const n = h % 6; // 0~5
+  const out: FeedComment[] = [];
+  for (let i = 0; i < n; i++) {
+    const hh = (h + i * 0x9e3779b1) >>> 0;
+    out.push({
+      id: `${id}-c${i}`,
+      nickname: COMMENT_NICKS[hh % COMMENT_NICKS.length],
+      text: COMMENT_TEXTS[(hh >> 5) % COMMENT_TEXTS.length],
+    });
+  }
+  return out;
 }
 
 export const CommunityScreen: React.FC = () => {
@@ -102,6 +126,24 @@ export const CommunityScreen: React.FC = () => {
   const likeOn = useCallback((id: string) => {
     setLikedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
+
+  // 댓글 — 목업 + 이번 세션에 단 댓글
+  const [userComments, setUserComments] = useState<Record<string, FeedComment[]>>({});
+  const [openComments, setOpenComments] = useState<EnrichedReview | null>(null);
+  const commentCountOf = useCallback(
+    (id: string) => mockCommentsFor(id).length + (userComments[id]?.length ?? 0),
+    [userComments],
+  );
+  const addComment = useCallback((postId: string, text: string) => {
+    setUserComments((prev) => ({
+      ...prev,
+      [postId]: [
+        ...(prev[postId] ?? []),
+        { id: `${postId}-u${Date.now()}`, nickname: '나', text, mine: true },
+      ],
+    }));
+  }, []);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newRating, setNewRating] = useState(5);
@@ -229,11 +271,13 @@ export const CommunityScreen: React.FC = () => {
             item={item}
             avatarColor={AVATAR_COLORS[index % AVATAR_COLORS.length]}
             liked={likedIds.has(item.id)}
+            commentCount={commentCountOf(item.id)}
             onToggleLike={() => toggleLike(item.id)}
             onLikeOn={() => likeOn(item.id)}
             onOpenPerfume={() =>
               item.perfume && navigation.navigate('PerfumeDetail', { perfumeId: item.perfume_id })
             }
+            onOpenComments={() => setOpenComments(item)}
           />
         )}
         ListEmptyComponent={
@@ -335,7 +379,90 @@ export const CommunityScreen: React.FC = () => {
           </ScrollView>
         </View>
       </DragSheet>
+
+      {/* 댓글 시트 */}
+      <CommentsSheet
+        post={openComments}
+        comments={
+          openComments
+            ? [...mockCommentsFor(openComments.id), ...(userComments[openComments.id] ?? [])]
+            : []
+        }
+        onClose={() => setOpenComments(null)}
+        onAdd={(text) => { if (openComments) addComment(openComments.id, text); }}
+      />
     </SafeAreaView>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// 댓글 시트
+// ─────────────────────────────────────────────────────────────
+const CommentsSheet: React.FC<{
+  post: EnrichedReview | null;
+  comments: FeedComment[];
+  onClose: () => void;
+  onAdd: (text: string) => void;
+}> = ({ post, comments, onClose, onAdd }) => {
+  const [text, setText] = useState('');
+  const submit = () => {
+    const t = text.trim();
+    if (!t) return;
+    onAdd(t);
+    setText('');
+    haptic('light');
+  };
+  return (
+    <DragSheet visible={post !== null} onClose={onClose} maxHeightRatio={0.85}>
+      <View style={cmt.body}>
+        <Text style={cmt.title}>댓글 {comments.length}</Text>
+        <ScrollView
+          style={cmt.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {comments.length === 0 ? (
+            <View style={cmt.empty}>
+              <Ionicons name="chatbubble-ellipses-outline" size={40} color={COLORS.gray300} />
+              <Text style={cmt.emptyText}>아직 댓글이 없어요.{'\n'}첫 댓글을 남겨 보세요.</Text>
+            </View>
+          ) : (
+            comments.map((c, i) => (
+              <View key={c.id} style={cmt.row}>
+                <View style={[cmt.avatar, { backgroundColor: c.mine ? COLORS.secondary : AVATAR_COLORS[i % AVATAR_COLORS.length] }]}>
+                  <Text style={cmt.avatarText}>{c.nickname[0]}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={cmt.nick}>
+                    {c.nickname}
+                    {c.mine ? <Text style={cmt.mineTag}>  나</Text> : null}
+                  </Text>
+                  <Text style={cmt.text}>{c.text}</Text>
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+        <View style={cmt.inputRow}>
+          <TextInput
+            style={cmt.input}
+            placeholder="댓글 달기…"
+            placeholderTextColor={COLORS.textLight}
+            value={text}
+            onChangeText={setText}
+            multiline
+          />
+          <TouchableOpacity
+            onPress={submit}
+            disabled={!text.trim()}
+            style={[cmt.send, !text.trim() && cmt.sendOff]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-up" size={18} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </DragSheet>
   );
 };
 
@@ -346,14 +473,15 @@ const FeedPost: React.FC<{
   item: EnrichedReview;
   avatarColor: string;
   liked: boolean;
+  commentCount: number;
   onToggleLike: () => void;
   onLikeOn: () => void;
   onOpenPerfume: () => void;
-}> = ({ item, avatarColor, liked, onToggleLike, onLikeOn, onOpenPerfume }) => {
+  onOpenComments: () => void;
+}> = ({ item, avatarColor, liked, commentCount, onToggleLike, onLikeOn, onOpenPerfume, onOpenComments }) => {
   const [viewer, setViewer] = useState(false);
   const hasImages = !!item.images && item.images.length > 0;
-  const base = pseudoCounts(item.id);
-  const likeCount = base.likes + (liked ? 1 : 0);
+  const likeCount = pseudoLikes(item.id) + (liked ? 1 : 0);
   const cat = CATEGORY_STYLE[item.boardCategory];
 
   // 더블탭 좋아요 → 중앙 하트 팝
@@ -446,9 +574,9 @@ const FeedPost: React.FC<{
             color={liked ? COLORS.accentInk : COLORS.text}
           />
         </TouchableOpacity>
-        <View style={feed.commentIcon}>
+        <TouchableOpacity onPress={onOpenComments} hitSlop={8} activeOpacity={0.7} style={feed.commentIcon}>
           <Ionicons name="chatbubble-outline" size={23} color={COLORS.text} />
-        </View>
+        </TouchableOpacity>
         {item.perfume && (
           <TouchableOpacity onPress={onOpenPerfume} hitSlop={8} activeOpacity={0.7} style={feed.bagIcon}>
             <Ionicons name="bag-handle-outline" size={23} color={COLORS.text} />
@@ -478,9 +606,11 @@ const FeedPost: React.FC<{
         </TouchableOpacity>
       )}
 
-      {base.comments > 0 && (
-        <Text style={feed.commentsLink}>댓글 {base.comments}개 모두 보기</Text>
-      )}
+      <TouchableOpacity onPress={onOpenComments} activeOpacity={0.7}>
+        <Text style={feed.commentsLink}>
+          {commentCount > 0 ? `댓글 ${commentCount}개 모두 보기` : '댓글 달기'}
+        </Text>
+      </TouchableOpacity>
 
       <Text style={feed.date}>{item.created_at.slice(0, 10)}</Text>
 
@@ -611,6 +741,64 @@ const feed = StyleSheet.create({
     color: COLORS.textLight,
     marginTop: 6,
   },
+});
+
+const cmt = StyleSheet.create({
+  body: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+  title: {
+    fontSize: FONT_SIZES.h4,
+    fontWeight: FONT_WEIGHTS.extrabold,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  scroll: { maxHeight: 360 },
+  empty: { alignItems: 'center', paddingVertical: SPACING.xl, gap: SPACING.sm },
+  emptyText: {
+    fontSize: FONT_SIZES.bodySm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: LINE_HEIGHTS.bodySm * 1.4,
+  },
+  row: { flexDirection: 'row', gap: SPACING.sm + 2, marginBottom: SPACING.md },
+  avatar: {
+    width: 32, height: 32, borderRadius: 9999,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarText: { fontSize: 12, fontWeight: FONT_WEIGHTS.extrabold, color: COLORS.text },
+  nick: { fontSize: FONT_SIZES.bodySm, fontWeight: FONT_WEIGHTS.bold, color: COLORS.text },
+  mineTag: { fontSize: 10, fontWeight: FONT_WEIGHTS.bold, color: COLORS.primaryInk },
+  text: {
+    fontSize: FONT_SIZES.bodySm,
+    color: COLORS.text,
+    lineHeight: LINE_HEIGHTS.bodySm * 1.4,
+    marginTop: 2,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    marginTop: SPACING.xs,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: COLORS.gray100,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.text,
+    maxHeight: 96,
+  },
+  send: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: COLORS.primaryDark,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  sendOff: { backgroundColor: COLORS.gray300 },
 });
 
 const styles = StyleSheet.create({
