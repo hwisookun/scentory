@@ -4,9 +4,9 @@
 
 ## What is this?
 
-A prototype mobile app that helps Korean users discover perfumes through preference-based onboarding, scent tag exploration, a wishlist/collection system, and a planned LLM chatbot ("향이"). All data is currently mocked — Supabase is installed but not yet wired up, and the chatbot uses hardcoded keyword matching.
+A prototype mobile app that helps Korean users discover perfumes through preference-based onboarding, scent tag exploration, a wishlist/collection system, a daily perfume diary, and an LLM chatbot ("향이", Claude Haiku 4.5). Screens read data through a repository layer (`src/lib/api/*`) that uses Supabase when its env vars are set and falls back to the mock data otherwise. The chatbot falls back to keyword matching when no API key is set.
 
-**Status:** Prototype, in-memory state only, no backend, no tests.
+**Status:** Prototype. Client state is persisted (Zustand + AsyncStorage). The Supabase schema, RLS policies and seed script exist, but no production catalog is loaded and server-side token verification is not implemented. No tests. See [PRD.md](PRD.md) §11–12 for open items and the roadmap.
 
 ---
 
@@ -74,12 +74,15 @@ Tab→Stack flows share `PerfumeDetailScreen`. Auth/onboarding transitions use `
 | Styling | StyleSheet + design tokens | [src/constants/theme.ts](src/constants/theme.ts) |
 | Animation | react-native-reanimated v4, gesture-handler, worklets | |
 | Native modules | expo-blur, expo-haptics, expo-image-picker, expo-linear-gradient, expo-location, expo-notifications, expo-font, expo-splash-screen | |
-| Backend | @supabase/supabase-js (installed, **not wired up**) | |
-| Storage | @react-native-async-storage/async-storage (installed, currently unused for app state) | |
+| Server state | TanStack Query v5 | hooks in [src/lib/api/hooks.ts](src/lib/api/hooks.ts) |
+| Backend | @supabase/supabase-js | client in [src/lib/supabase.ts](src/lib/supabase.ts); returns `null` when env vars are empty, so the API layer serves mock data |
+| Storage | @react-native-async-storage/async-storage | persists the Zustand store |
+| Auth | expo-apple-authentication, expo-auth-session | Apple, Kakao, Naver in [src/lib/auth/](src/lib/auth/); Google is not implemented |
+| LLM | Claude Haiku 4.5 via `fetch` | [src/lib/chatClient.ts](src/lib/chatClient.ts) |
 
 ### State management
 
-Single Zustand store ([src/store/useAppStore.ts](src/store/useAppStore.ts)) — in-memory, no persistence:
+Single Zustand store ([src/store/useAppStore.ts](src/store/useAppStore.ts)), persisted with `persist` + AsyncStorage (check the `persist` config at the bottom of the file for exactly which slices are kept):
 
 - **Auth:** `user`, `isAuthenticated`, `isGuest`, `loginAsGuest`, `loginWithSocial`, `logout`
 - **Onboarding:** `purpose`, `priceRange`, `preferredBrands`, `preferredScents`, `preferredNotes`, `isCompleted`
@@ -88,10 +91,11 @@ Single Zustand store ([src/store/useAppStore.ts](src/store/useAppStore.ts)) — 
 
 ### Data layer
 
-- Mock data lives in [src/lib/mockData.ts](src/lib/mockData.ts): `MOCK_BRANDS`, `MOCK_PERFUMES`, `MOCK_REVIEWS`, `MOCK_SPOTS`.
-- Perfume images use `https://picsum.photos/seed/{seed}/400/500` placeholders.
-- Chatbot responses are keyword-matched constants in [src/screens/Chatbot/ChatbotScreen.tsx](src/screens/Chatbot/ChatbotScreen.tsx) (`BOT_RESPONSES`). Planned integration point for Claude or another LLM.
-- When Supabase is connected, the mock exports will be replaced by API calls.
+- Screens never import mock data directly. They call the repository layer in [src/lib/api/](src/lib/api/) (`perfumes.ts`, `brands.ts`, `reviews.ts`, `spots.ts`) through the hooks in `hooks.ts`.
+- If `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` are set, the layer reads from Supabase; otherwise it returns [src/lib/mockData.ts](src/lib/mockData.ts) (`MOCK_BRANDS`, `MOCK_PERFUMES`, `MOCK_REVIEWS`, `MOCK_SPOTS`).
+- Schema: [supabase/migrations/](supabase/migrations/) (`0001_init.sql` with RLS policies, `0002_constraints.sql`). Load the mock catalog into Supabase with `npm run seed` (idempotent, needs `SUPABASE_SERVICE_ROLE_KEY`).
+- Perfume images use `https://picsum.photos/seed/{seed}/400/500` placeholders until real images are hosted.
+- Chatbot: [src/screens/Chatbot/ChatbotScreen.tsx](src/screens/Chatbot/ChatbotScreen.tsx) calls Claude through [src/lib/chatClient.ts](src/lib/chatClient.ts) when `EXPO_PUBLIC_ANTHROPIC_API_KEY` is set, and falls back to keyword-matched `BOT_RESPONSES` otherwise.
 
 ### Domain types
 
@@ -126,7 +130,11 @@ Reference HTML mockups (large, not bundled) live in [claude_design/](claude_desi
 | [src/store/useAppStore.ts](src/store/useAppStore.ts) | Single Zustand store |
 | [src/types/index.ts](src/types/index.ts) | All domain types |
 | [src/constants/theme.ts](src/constants/theme.ts) | Design tokens (use these, not raw values) |
-| [src/lib/mockData.ts](src/lib/mockData.ts) | Mock perfumes, brands, reviews, spots |
+| [src/lib/api/](src/lib/api/) | Repository layer + TanStack Query hooks (Supabase or mock) |
+| [src/lib/mockData.ts](src/lib/mockData.ts) | Mock perfumes, brands, reviews, spots (fallback and seed source) |
+| [src/lib/chatClient.ts](src/lib/chatClient.ts) | Claude chatbot client and persona prompt |
+| [supabase/migrations/](supabase/migrations/) | Database schema and RLS policies |
+| [PRD.md](PRD.md) | Product requirements, ADRs, roadmap, feedback history |
 | [src/screens/](src/screens/) | One folder per screen (15 total) |
 | [src/components/common/](src/components/common/) | Shared UI primitives (PerfumeCard, Toast, DragSheet, …) |
 | [app.json](app.json) | Expo config |
@@ -161,13 +169,16 @@ Reference HTML mockups (large, not bundled) live in [claude_design/](claude_desi
 
 Extend `SCENT_COLORS` and `SCENT_TEXT_COLORS` in [src/constants/theme.ts](src/constants/theme.ts), plus the `ScentTag` union in [src/types/index.ts](src/types/index.ts).
 
-### Wire Supabase (when ready)
+### Turn on Supabase
 
-Replace exports in [src/lib/mockData.ts](src/lib/mockData.ts) with Supabase queries. Keep the same shapes (`Perfume`, `Brand`, `Review`, `ScentorySpot`) so consumers don't change.
+1. Copy `.env.example` to `.env` and fill `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+2. Run the SQL in `supabase/migrations/` in the Supabase SQL Editor.
+3. Fill `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, then run `npm run seed` (the service role key bypasses RLS; never ship it in the app).
+4. Restart Metro. The API layer now reads from Supabase. To add a data source, extend the matching file in `src/lib/api/` and keep the same shapes (`Perfume`, `Brand`, `Review`, `ScentorySpot`) so screens don't change.
 
-### Connect the chatbot to an LLM
+### Turn on the chatbot
 
-Replace `BOT_RESPONSES` keyword matching in [src/screens/Chatbot/ChatbotScreen.tsx](src/screens/Chatbot/ChatbotScreen.tsx) with API calls. Maintain the existing message append flow.
+Set `EXPO_PUBLIC_ANTHROPIC_API_KEY` in `.env`. Persona and tone rules are in the system prompt in [src/lib/chatClient.ts](src/lib/chatClient.ts). The key is bundled into the app, so move the call behind a backend proxy before any public build.
 
 ---
 
@@ -194,10 +205,10 @@ Tagline: **"나의 향, 나의 기억"**.
 ### Common issues
 
 - **White flash on auth/onboarding transition** — all root screens are always registered; transitions go through `navigation.reset()`. If you re-introduce conditional mounting, the flash returns. See comment in [src/navigation/AppNavigator.tsx](src/navigation/AppNavigator.tsx#L122).
-- **State not persisting after reload** — expected. The Zustand store is in-memory only; there's no AsyncStorage layer wired up yet.
+- **State not persisting after reload** — the store uses `persist` + AsyncStorage, so check that the slice is included in the `persist` config at the bottom of [src/store/useAppStore.ts](src/store/useAppStore.ts). To start clean during development, clear the app's storage or log out (logout resets user slices).
 - **Reanimated worklet errors** — ensure `react-native-gesture-handler` is imported at the top of [App.tsx](App.tsx) (already is) and that you're using a dev build, not Expo Go, if you add new native modules.
 - **Image not loading** — perfume images go through `picsum.photos`. Network-dependent during dev.
-- **`.tmp.*` files in `src/`** — stray editor temp files (e.g., `AppNavigator.tsx.tmp.*`). Safe to delete; they're not imported.
+- **`.tmp.*` files in `src/`** — stray editor temp files (e.g., `AppNavigator.tsx.tmp.*`). Safe to delete; they're not imported. Two of them are currently committed and should be removed and added to `.gitignore`.
 
 ### Type-checking
 
@@ -218,8 +229,8 @@ No test runner is configured. UI verification is manual via simulator/device.
 - Follow the content/brand conventions above when writing any user-facing copy.
 
 ### Senior engineers / tech leads
-- Two integration points are blocking productionization: **Supabase** (replace mock data) and **LLM chatbot** (replace keyword matching). Both have stable consumer-side shapes; the swap should be isolated.
-- No persistence layer — first piece of real work after Supabase wiring is hydrating Zustand from server/AsyncStorage on cold start.
+- Both integration points already exist behind stable shapes: the repository layer (`src/lib/api/*`, Supabase with mock fallback) and the chatbot client (`src/lib/chatClient.ts`). What still blocks productionization: a real perfume catalog and image hosting, server-side verification of Apple/Kakao/Naver tokens, and a backend proxy so no secret (`EXPO_PUBLIC_ANTHROPIC_API_KEY`, `EXPO_PUBLIC_NAVER_CLIENT_SECRET`) ships in the bundle.
+- Client state is persisted locally, but nothing is synced to the server yet. Syncing wishlist and diary per user is the first real work after auth.
 - No CI/tests. If formalizing, start with type-check + a smoke test on the navigator's initial-route decision.
 - Large `claude_design/` asset bundle (≈25 MB of fonts + a 13 MB HTML reference) is checked in — consider moving out of the runtime tree if shipping.
 

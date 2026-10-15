@@ -1,7 +1,7 @@
 # 맡다. (Scentory) — Product Requirements Document
 
 **Status:** Prototype · v0.1
-**Last updated:** 2026-05-21
+**Last updated:** 2026-10-15
 **Owner:** ovadoz0806@gmail.com
 
 > 이 PRD는 살아 있는 문서입니다. 코드와 결정이 바뀌면 같이 갱신해 주세요. 새로운 의사결정은 우선 PRD에 반영한 뒤 코드로 옮기는 것을 권장합니다.
@@ -185,7 +185,7 @@ ScentGacha 일 1회 알림 → 오늘의 향 뽑기 → 자세히 보기
 
 | 엔티티 | 핵심 필드 | 상태 |
 |---|---|---|
-| `users` | id · nickname · email · loginType · pref_scents · pref_notes · nickname_changed_at | Zustand persist (in-memory) |
+| `users` | id · nickname · email · loginType · pref_scents · pref_notes · nickname_changed_at | Zustand persist (AsyncStorage) |
 | `brands` | id · name · priceRange · isNiche · country · official_url | Supabase 스키마 적용 가능 |
 | `perfumes` | id · brand_id · concentration · top/middle/base_notes · tags · price_krw · image_url · rating | 동일 |
 | `reviews` | id · user_id · perfume_id · rating · comment · images · created_at | 동일 + RLS |
@@ -286,7 +286,7 @@ ScentGacha 일 1회 알림 → 오늘의 향 뽑기 → 자세히 보기
 - 캘린더 동기화 — Android 일부 OEM에서 권한 다이얼로그 비일관
 
 ### 11.3 UX
-- Explore 메인 1198 줄 — 컴포넌트 분할 필요 (Phase 5)
+- ~~Explore 메인 1198 줄~~ — 분할 완료: 391줄 + `Explore/components/` 4개 (2026-05-29, `cdd7516`). 나머지 화면의 크기 점검은 Phase 5에서 계속
 - 다이어리 30일 회고 / 월간 리포트 같은 가치 회수 루프 부재
 - 챗봇이 향수 외 주제로 빠지면 어떻게 돌릴지 페르소나에만 의존
 
@@ -296,7 +296,7 @@ ScentGacha 일 1회 알림 → 오늘의 향 뽑기 → 자세히 보기
 
 | Phase | 범위 | 예상 기간 |
 |---|---|---|
-| **0 — 현재** | 클라이언트 v0.1 + Supabase 스카폴딩 + 인증 라이브러리 | 완료 |
+| **0 — 현재** | 클라이언트 v0.1 + Supabase 스카폴딩 + 인증 라이브러리 + API 하드닝(DB 제약·타입 안전성·페이지네이션) + 리뷰 무한 스크롤 + Explore 분할 | 완료 |
 | **1** | env 채우기 + 스키마 적용 + 시드 + 첫 dev build 동작 검증 | 1–2일 |
 | **2** | Supabase Auth · 세션 · RLS 확장 · 토큰 서버 검증 | 3–5일 |
 | **3** | 실제 카탈로그 + 이미지 + 시드 파이프라인 | 1–2주 (콘텐츠 의존) |
@@ -358,3 +358,35 @@ ScentGacha 일 1회 알림 → 오늘의 향 뽑기 → 자세히 보기
 - [ ] 푸시 알림 전송 테스트
 - [ ] Sentry DSN + 기본 애널리틱스 이벤트 연결
 - [ ] 30대 베타 사용자 D7 retention 측정
+
+### 14.4 초기 기획 노트와 피드백 반영 이력
+
+기획은 (1) 초기 기획 노트에서 범위를 정하고, (2) 에뮬레이터(Pixel 9 등)로 직접 써 보며 4.1 피드백을 적고, (3) 그 항목을 Claude Code로 구현하는 순서로 진행했다. 초기 노트에는 AI가 제안한 방향과 이를 채택한 결정이 함께 적혀 있다. 아래는 코드에서 확인한 현재 상태다. 확인한 기준일은 2026-10-15.
+
+**초기 기획에서 정한 범위**
+
+| 결정 | 현재 상태 |
+|---|---|
+| 브랜드 공식 채널 링크 연결부터 시작해 리스크를 낮춘다 | 반영 — `brands.official_url` 필드 |
+| 시향 장소는 서울 주요 지역 수작업 큐레이션으로 시작하고 점차 확장한다 | 부분 — `spots` mock 3곳(서울 백화점), 확장은 미정 |
+| 커뮤니티는 한줄평·별점 중심으로 가볍게 시작한다 | 반영 — Community 한줄평 피드, 리뷰 무한 스크롤 |
+| 하단 탭: 찾아보기 · 위시리스트 · 커뮤니티 · 마이페이지 | 변경 — 챗봇 "향이" 탭이 추가돼 5탭 |
+
+**4.1 피드백 항목별 상태**
+
+| 피드백 | 상태 |
+|---|---|
+| 앱 이름을 Scentory에서 "맡다."로 변경, 파스텔 초록 로고 | 반영 — §3, `claude_design/` |
+| 로그인 화면에 게스트 진입 "우선 들어갈래요" | 반영 — `LoginScreen` |
+| 카카오·네이버·구글 로그인 | 부분 — Apple·Kakao·Naver 구현, Google 미구현 |
+| 선택 후 되돌릴 수 있는 뒤로가기 버튼 | 반영 — `OnboardingScreen` 등 |
+| "잘 모르겠어요" 버튼을 항목별 물음표 툴팁으로 교체 | 반영 — `OnboardingScreen` |
+| 선호 향 질문 "나는 무슨 향을 좋아할까?" | 반영 — `OnboardingScreen` |
+| 위시리스트·컬렉션 토스트 문구 ("향을 내 마음에 담아 봤어요." 등) | 반영 — `useAppStore` |
+| "비슷한 향수" 대신 "이런 향수도 있어요" | 반영 — `PerfumeDetailScreen` |
+| 향수 DB 확대(브랜드 top 20, 주력 제품) | 반영 — mock 브랜드 20개, 향수 60여 개. 실제 카탈로그는 Phase 3 |
+| 챗봇 "향이" 탭을 커뮤니티와 마이페이지 사이에 추가 | 반영 — Claude Haiku 4.5 연동 |
+| 오늘의 향 푸시 알림과 on/off 설정 | 부분 — 설정 UI 있음, 실제 푸시 전송은 미구현(Phase 4) |
+| 브랜드 구독 영역을 "구독한 브랜드"로 고치고 접이식으로 | 확인 필요 — 구독 기능은 `MyPageScreen`에 있으나 해당 문구와 접이식 동작은 코드에서 확인되지 않음 |
+| 카테고리 탭(브랜드별 · 국가별 · 니치/논니치) | 부분 — `isNiche`·`country` 데이터 필드는 있으나 국가별 탭 UI는 확인되지 않음 |
+| 알림을 옆으로 밀어서 닫기 | 미반영 |
