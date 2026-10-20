@@ -43,3 +43,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local MCP/tool config (may hold tokens)
+claude.json
+
+# editor temp files
+*.tmp.*
